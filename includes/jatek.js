@@ -1,5 +1,6 @@
 var currentid = cursor = 0;
 var lastkey = null;
+var jatekaktiv = true;
 const betuszam = document.getElementById('jatektabla').getAttribute('data-betuszam');
 const EgykarakteresBetukEsSzamok = [
     "A", "Á", "B", "C", "D", "E", "É", "F", "G", "H",
@@ -83,10 +84,13 @@ function jumpToNext(id ) {
 }
 
 function jumpToKey(id){
-    if(id < betuszam)
-        document.getElementById('jatekmezoinput_' + currentid + '_' + id).focus();
-    else
-        setBekuld(true);
+    if(jatekaktiv)
+    {
+        if(id < betuszam)
+            document.getElementById('jatekmezoinput_' + currentid + '_' + id).focus();
+        else
+            setBekuld(true);
+    }
 }
 
 function backSpace() {
@@ -183,6 +187,7 @@ function eredmenyKiErtekel(json) {
                 alert(json.uzenet);
                 disableAllFields();
             }, 0);
+            jatekaktiv = false;
         }
         else
         {
