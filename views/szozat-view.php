@@ -6,8 +6,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 global $wpdb;
 global $table_prefix;
 $jelenszo = $wpdb->get_row("SELECT feladvany_id, feladvany_szoveg FROM {$wpdb->prefix}szozat_feladvanyok ORDER BY RAND() LIMIT 1;");
-//$jelenszo = $jelenszo->Fetch();
-$_SESSION['feladvany_id'] = $jelenszo->feladvany_id;
 update_user_meta(get_current_user_id(), 'szozat_feladvany_id', $jelenszo->feladvany_id);
 $betuszam = mb_strlen($jelenszo->feladvany_szoveg, 'UTF-8');
 

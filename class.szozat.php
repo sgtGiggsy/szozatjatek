@@ -1,13 +1,23 @@
 <?php
-
 Class Szozat
 {
-    public static function plugin_activation() {
-        global $wpdb;
+    public static $should_enqueue_assets = false;
 
+    public static function init() {
+        if (is_admin()) {
+            add_action('admin_init', [self::class, 'handle_admin_post']);
+        }
+
+        add_action('init', [self::class, 'register_shortcodes']);
+        add_action('init', [self::class, 'register_ajax_hooks']);
+        add_action('init', [self::class, 'add_rewrite_rule']);
+    }
+    
+    public static function plugin_activation() {
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         require_once plugin_dir_path(__FILE__) . 'includes/db-schema.php';
 
+        global $wpdb;
         $prefix = $wpdb->prefix;
         $charset_collate = $wpdb->get_charset_collate();
 
@@ -27,11 +37,12 @@ Class Szozat
                 $wpdb->insert($table, ['szo' => $szo], ['%s']);
             }
         }
+        flush_rewrite_rules();
     }
 
     public static function plugin_deactivation()
     {
-        //flush_rewrite_rules();
+        flush_rewrite_rules();
     }
 
     public static function plugin_uninstall() {
@@ -45,6 +56,7 @@ Class Szozat
         $wpdb->query("DROP TABLE IF EXISTS {$prefix}szozat_kitoltesek");
         $wpdb->query("DROP TABLE IF EXISTS {$prefix}szozat_legalisszavak");
         // Ha saját adatbázistábla lenne: DROP TABLE stb.
+        flush_rewrite_rules();
     }
 
     public static function betolto_szavak_fajlbol() {
@@ -67,16 +79,27 @@ Class Szozat
         return $szavak;
     }
 
-    public static function register_shortcodes() {
+    public static function register_shortcodes($atts) {
         add_shortcode('szozat_jatek', [__CLASS__, 'render_game']);
     }
 
     public static function register_query_var($vars) {
-        $vars[] = 'szozat_page';
+        $vars[] = 'feladvany_id';
         return $vars;
     }
 
+    public static function add_rewrite_rule() {
+        add_rewrite_rule(
+            '^szozat/([0-9]{4})-([0-9]{2})-([0-9]{2})/?$',
+            'index.php?pagename=szozat&feladvany_id=$matches[1]-$matches[2]-$matches[3]',
+            'top'
+        );
+    }
+
     public static function render_game() {
+        $feladvany_id = get_query_var('feladvany_id'); // pl. 23
+
+        self::$should_enqueue_assets = true;
         ob_start();
 
         // Ha a views könyvtár a plugin gyökér alatt van, akkor így adod meg az útvonalat:
@@ -87,22 +110,15 @@ Class Szozat
 
     public static function handle_request() {
         if (get_query_var('szozat_page')) {
-            self::init(); // pl. session indítás
             include plugin_dir_path(__FILE__) . 'views/szozat-view.php';
             exit;
         }
     }
 
-    public static function init() {
-        if (!session_id()) {
-            session_start();
-        }
-    }
-
     public static function admin_menu() {
         add_menu_page(
-            'Szozat Beállítások',       // Oldal címe (title)
-            'Szozat',                   // Menü szöveg
+            'Szózat beállítások',       // Oldal címe (title)
+            'Szózatjáték',              // Menü szöveg
             'manage_options',           // Jogosultság
             'szozat_settings',          // Slug (URL-ben)
             ['Szozat', 'admin_page'],   // Callback (megjelenítő függvény)
@@ -112,16 +128,111 @@ Class Szozat
     }
 
     public static function admin_page() {
-        ?>
-        <div class="wrap">
-            <h1>Szozat Beállítások</h1>
-            <p>Itt jön majd a játék beállításainak admin felülete.</p>
-            <!-- Itt később beilleszthető form, opciók mentése stb. -->
-        </div>
-        <?php
+        $feladvanyok = self::feladvanyok_listaja();
+        include SZOZAT_PLUGIN_DIR . 'views/szoadmin-view.php';
+    }
+
+    private static function post_feladvany() {
+        global $wpdb;
+        if (
+            isset($_POST['szozat_nonce']) &&
+            wp_verify_nonce($_POST['szozat_nonce'], 'szozat_admin_form')
+        ) {
+            $ujszo = mb_strtoupper($_POST['feladvany']);
+            $sql = $wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}szozat_legalisszavak WHERE szo = %s", $ujszo);
+
+            // Ha nincs találat az ismert szavak között, hiba dobása
+            if((int) $wpdb->get_var($sql) > 0)
+            {
+                $wpdb->insert(
+                    "{$wpdb->prefix}szozat_feladvanyok",
+                    [
+                        'feladvany_szoveg' => $ujszo,
+                        'egyszavas' => 1
+                    ],
+                    [
+                        '%s',
+                        '%d'
+                    ]
+                );
+                wp_redirect(admin_url('admin.php?page=szozat_settings&success=1'));
+                exit;
+            }
+            else
+            {
+                wp_redirect(admin_url('admin.php?page=szozat_settings&error=ismeretlen_szo&szo=' . urlencode($ujszo)));
+                exit;
+            }
+        }
+    }
+
+    public static function admin_notices() {
+        if (!isset($_GET['page']) || $_GET['page'] !== 'szozat_settings') {
+            return;
+        }
+
+        if(isset($_GET['error']) || isset($_GET['success']))
+        {
+            isset($_GET['error']) ? $class = 'error' : $class = 'success';
+            echo '<div class="notice notice-' . $class . ' is-dismissible">';
+            if(isset($_GET['error']))
+            {
+                switch($_GET['error'])
+                {
+                    case "ismeretlen_szo" : echo "<p><strong>Hiba:</strong> A(z) " . mb_strtoupper($_GET['szo']) . " nem egy felismert magyar szó, ezért nem adható az adatbázishoz!</p>";
+                        break;
+                }
+            }
+
+            if (isset($_GET['success'])) {
+                echo '<p>Feladvány sikeresen létrehozva.</p>';
+            }
+            echo '</div>';
+        }
+    }
+
+    public static function handle_admin_post() {
+        if(isset($_POST['feladvany']))
+        {
+            self::post_feladvany();
+        }
+    }
+
+    private static function feladvanyok_listaja() {
+        global $wpdb;
+        $sql = "SELECT feladvany_id, feladvany_szoveg, egyszavas, datum FROM {$wpdb->prefix}szozat_feladvanyok ORDER BY feladvany_id DESC";
+        return $wpdb->get_results($sql, ARRAY_A);
+    }
+
+    public static function aktualis_feladvany() {
+        global $wpdb;
+
+        $sql = $wpdb->prepare("SELECT feladvany_szoveg FROM {$wpdb->prefix}szozat_feladvanyok ORDER BY feladvany_id DESC LIMIT 1;");
+        return $wpdb->get_var($sql);
     }
 
     public static function enqueue_assets() {
+        if (!self::$should_enqueue_assets) {
+            return;
+        }
+
+        // SweetAlert2 CSS
+        wp_enqueue_style(
+            'sweetalert2-css',
+            plugin_dir_url(__FILE__) . 'includes/external/sweetalert2.min.css',
+            [],
+            '11.22.0' // verziószám, lehet a fájl verziója
+        );
+
+        // SweetAlert2 JS
+        wp_enqueue_script(
+            'sweetalert2-js',
+            plugin_dir_url(__FILE__) . 'includes/external/sweetalert2.all.min.js',
+            [],          // függőségek, pl. ['jquery'], ha kell
+            '11.22.0',    // verzió
+            true         // láb részre töltse be
+        );
+
         wp_enqueue_style(
             'szozat-style',
             plugin_dir_url(__FILE__) . 'includes/szozat-view.css',
@@ -171,7 +282,7 @@ Class Szozat
         $sql = $wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}szozat_legalisszavak WHERE szo = %s", $inputszo);
 
         // Ha nincs találat az ismert szavak között, hiba dobása
-        if((int) $wpdb->get_var($sql) != 1)
+        if((int) $wpdb->get_var($sql) == 0)
         {
             $retcode = 406;
         }
@@ -213,9 +324,10 @@ Class Szozat
                 $jelenkitoltesvalaszok = json_encode($jelenkitoltesvalaszok, JSON_UNESCAPED_UNICODE);
                 $sql = $wpdb->prepare(
                     "UPDATE {$wpdb->prefix}szozat_kitoltesek
-                    SET valaszok = %s
+                    SET valaszok = %s, kiserletszam = %d
                     WHERE kitoltes_id = %d",
                     $jelenkitoltesvalaszok,
+                    $kiserletszam,
                     $kitoltesid
                 );
 
@@ -313,5 +425,4 @@ Class Szozat
             'eredmeny' => $ret
         ]);
     }
-
 }
