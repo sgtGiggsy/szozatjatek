@@ -1,13 +1,30 @@
+
 <?php
+if ( ! defined( 'ABSPATH' ) ) {
+    die();
+}
+global $wpdb;
+global $table_prefix;
+$jelenszo = $wpdb->get_row("SELECT feladvany_id, feladvany_szoveg FROM {$wpdb->prefix}szozat_feladvanyok ORDER BY RAND() LIMIT 1;");
+//$jelenszo = $jelenszo->Fetch();
+$_SESSION['feladvany_id'] = $jelenszo->feladvany_id;
+update_user_meta(get_current_user_id(), 'szozat_feladvany_id', $jelenszo->feladvany_id);
+$betuszam = mb_strlen($jelenszo->feladvany_szoveg, 'UTF-8');
 
-$jelenszo = new MySQLHandler('SELECT feladvany_id, feladvany_szoveg FROM szozat_feladvanyok ORDER BY RAND() LIMIT 1;');
-$jelenszo = $jelenszo->Fetch();
-$_SESSION['feladvany_id'] = $jelenszo['feladvany_id'];
-$betuszam = mb_strlen($jelenszo['feladvany_szoveg']);
-$ujfeladvany = new MySQLHandler('INSERT INTO szozat_kitoltesek (felhasznalo_id, feladvany_id) VALUES (?, ?)', $_SESSION['id'], $jelenszo['feladvany_id']);
+//A kitöltés mentése az adatbázisba
+$wpdb->insert(
+    "{$wpdb->prefix}szozat_kitoltesek",
+    [
+        'felhasznalo_id' => get_current_user_id(),
+        'feladvany_id' => $jelenszo->feladvany_id
+    ],
+    [
+        '%d',
+        '%d'
+    ]
+);
 
-include_once("./templates/header.tpl.php"); ?>
-<div class="jatek">
+?><div class="jatek" id="jatekter">
     <table id="jatektabla" data-betuszam='<?=$betuszam?>'><?php
         for($tr = 0; $tr < 8; $tr++)
         {
@@ -100,5 +117,3 @@ include_once("./templates/header.tpl.php"); ?>
     <div id="jatekinfo_6">Játék időtartama: <span id="jatektartam"></span></div>
 </div>-->
 </div>
-<?php
-include_once("./templates/footer.tpl.php");

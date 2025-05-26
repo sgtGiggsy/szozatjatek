@@ -21,7 +21,7 @@ window.onload = function() {
     jumpToKey(0);
 }
 
-document.getElementById('wrapper').addEventListener('click' , function (event) {
+document.getElementById('jatekter').addEventListener('click' , function (event) {
     jumpToKey(cursor);
 });
 
@@ -154,7 +154,8 @@ function setRow() {
     jumpToKey(cursor);
 }
 
-function eredmenyKiErtekel(json) {
+function eredmenyKiErtekel(rawjson) {
+    let json = rawjson.data;
     if(json.retcode < 200 || json.retcode > 204)
     {
         if(json.retcode == 410)
@@ -201,8 +202,11 @@ function eredmenyKiErtekel(json) {
 }
 
 async function sendMegoldas() {
-    // Construct a FormData instance
+    // A FormData objektum létrehozása
     const formData = new FormData();
+    // Az action mező hozzáadása, hogy a WP tudja, melyik AJAX hívást kell kezelnie
+    formData.append('action', 'szozat_megoldas');
+    formData.append('security', SzozatAjax.nonce);
 
     for(let i = 0; i < betuszam; i++)
     {
@@ -212,7 +216,7 @@ async function sendMegoldas() {
     }
   
     try {
-        const response = await fetch("./megoldas", {
+        const response = await fetch(SzozatAjax.ajax_url, {
             method: "POST",
             body: formData
         });
