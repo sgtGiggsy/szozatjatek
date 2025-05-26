@@ -1,306 +1,31 @@
-*, *:before, *:after {
-    box-sizing: border-box;
-}
-
 /* Színmeghatározások */
 :root {
     --body: #fff;
     --basefont: #000000;
-    --fontlight: #e0e0e0;
     --fontlight2: #f7f7f7;
     --fontlight3: #f5f5f5;
-    --greyfont: #a1a1a1;
     --contentbg: #ededed;
-    --menu: #2d373c;
-    --menuhover: #1f282d;
-    --submenu: #717a7f;
-    --submenuhover: #35454d;
-    --link: #007acc;
-    --linkhover: #663399;
-    --infoboxtitle: #0f2c3a7c;
-    --infotitleborder: #66747a;
-    --infoboxthead: #8b96a1;
-    --infoboxsoro: #cdd7dc;
-    --infoboxsore: #abb0bc;
-    --cardbase: #dfe3e6;
-    --cardtitle: #d5d8db;
-    --cardoptions: #ced4da;
-    --lightborder: #9aa3a7;
-    --midborder: #858585;
     --button: #007acc;
     --buttonborder: #004b7e;
     --buttonhover: #1c4663;
-    --checkswitchbg: #c2c5cc;
-    --checkswitch: #2196F3;
-    --checkswitchtrack: #f7f7f7;
-    --cbchecked: #007acc;
-    --topbase: #f7f7f7;
-    --topbase2nd: #edebeb;
-    --topborder: #807d7d;
-    --shadow: #25252646;
+    --lightborder: #9aa3a7;
     --selectbg: #f7f7f7;
-    --selectlowcontrast: #9e9e9e;
     --thead: #969494;
     --tsoro: #e0e0e0;
     --tsore: #bbbbbb;
-    --hibas: #666666;
-    --hibasoffline: #990000ac;
+    --shadow: #25252646;
+    --scrollthumb: #35454d;
     --online: #018216;
     --offline: #990000;
-    --scrolltrack: #717a7f;
-    --scrollthumb: #35454d;
-    --scrollthumbhover: #212b30;
-    --infoboxscrollthumb: #35454d;
-    --headpopupbg: #2c3539;
-    --notifcount: #990000;
-    --notifseen: #43545e;
-    --notifpopscrolltrack: #151c1f;
-    --notifpopscrollthumb: #3d4d54;
-    --overlayclose: #aaaaaa;
-    --toasterbg: #333333;
-    --commentbg: #666666;
-    --footerbg: #000000;
-    --loadercolor: #3498db;
-    --warning: #990000;
-    --addnewborder: #33343a;
-    --minimal: #36d395;
-    --alacsony: #3fbb01;
-    --halaszthato: #19994e;
-    --urgent: #c04d00;
     --important: #e1bc00;
 }
 
 /* ------------------------------- Az oldal "alapbeállításai" ------------------------------- */
-body {
-    margin: 0;
-    display: block;
-    font-family: "roboto";
-    color: var(--basefont);
-    background-color: var(--body);
-    scrollbar-gutter: unset;
-    overflow-x: hidden;
-}
 
-.wrapper {
-    display: grid;
-    justify-content: center;
-    /*background-color: var(--menu);*/
-    grid-template-columns: 1fr;
-    min-height: 100vh;
-    margin: 0;
-}
 
 h1, h2, h4 {
     margin-top: 0px;
     margin-bottom: 0px;
-}
-
-p {
-    margin-top: 0em;
-    margin-bottom: 0.5em;
-}
-
-a {
-    color: var(--basefont);
-    font-weight: bold;
-    text-decoration: none;
-}
-
-img {
-    max-width: 100%;
-    display: block;
-}
-
-ol, ul {
-    list-style: none;
-    padding-left: 0px;
-}
-
-svg {
-    fill: var(--basefont);
-    height: 1.7em;
-    width: 1.7em;
-}
-
-fieldset {
-    border: 0px;
-}
-
-.buttonininput {
-    display: flex;
-    align-items: center;
-    position: relative;
-}
-
-.buttonininput input {
-    width: 100%;
-    padding-right: 35px;
-}
-
-.buttonininput a {
-    position: absolute;
-    right: 5px;
-    top: 5px;
-}
-
-.buttonininput svg {
-    height: 1.25em;
-    width: 1.25em;
-}
-
-/* Görgetősáv */
-::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-::-webkit-scrollbar-track {
-    background-color: var(--scrolltrack);
-    border-radius: 100px;
-    margin: 0 20px 0 20px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--scrollthumb);
-    border-radius: 100px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollthumbhover);
-    border-radius: 100px;
-}
-
-/* Oldaltörzs alapbeállítások */
-
-
-.content {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    padding: 1em;
-    background-color: var(--contentbg);
-    /*justify-content: center;
-    overflow: auto;*/
-    box-shadow: 2px 2px 5px var(--shadow);
-    grid-column-start: 2;
-    grid-column-end: 4;
-    grid-row-start: 3;
-    grid-row-end: 5;
-}
-
-.contentcenter {
-    display: flex;
-    flex-direction: column;
-    /*justify-content: center;*/
-    align-items: center;
-    position: relative;
-    /*margin: 0 auto;
-    width: clamp(20vw, 40vw, 70vw);*/
-    min-width: 20ch;
-    /*max-width: 70ch;*/
-}
-
-.fullwidthdivs div {
-    width: 100%;
-}
-
-.eightypercdivs div {
-    width: 80%;
-}
-
-.contentcenter input {
-    width: 100%;
-    text-align: left;
-}
-
-.olvashato {
-    flex-direction: column;
-    max-width: 80ch;
-    width: 80ch!important;
-}
-
-.contentcenterpadding div {
-    padding: 1em 0 0 0;
-}
-
-.contentleft {
-    display: flex;
-}
-
-/* Felületek megjelenése */
-/* Szerkesztő felület */
-.szerkcard, .vizsgacard {
-    border: 2px var(--midborder) solid;
-    background-color: var(--cardbase);
-    border-radius: 15px;
-    padding: unset;
-}
-
-.szerkcard {
-    overflow: hidden;
-}
-
-.szerkcardtitle {
-    display: flex;
-    border-radius: 13px 13px 0 0;
-    background-color: var(--cardtitle);
-    border-bottom: 1px var(--lightborder) solid;
-    font-size: 1.3em;
-    font-weight: bold;
-    padding: 0.5em 1em;
-    position: relative;
-    align-items: center;
-    background-clip: border-box;
-}
-
-.szerkcardtitle div {
-    width: unset;
-    margin: 0 0.3em 0 0;
-}
-
-.szerkcardoptions {
-    display: flex;
-    flex-direction: row;
-    height: 3em;
-    text-align: center;
-    vertical-align: middle;
-}
-
-.szerkcardoptionelement {
-    background-color: var(--cardoptions);
-    font-size: 1em;
-    padding-top: 0.5em;
-    height: 2.2em;
-    transition: 0.5s;
-    border-bottom-right-radius: 0.7em;
-}
-
-.szerkcardoptionelement span {
-    padding: 1em 1em 0.5em 0.5em;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.szerkcardoptionelement span::before {
-    padding-right: 0.5em;
-    border-left: 1px var(--basefont) solid;
-    content: "";
-}
-
-.szerkcardoptionelement:hover {
-    padding-top: 1em;
-    height: 2.7em;
-    transition: 0.5s;
-}
-
-.szerkcardbody {
-    padding: 0 0 0 2em;
-}
-
-.szerkeszt .contentcenter {
-    padding: 0.7em 0 1.5em 0;
-    min-width: unset;
-    position: unset;
 }
 
 /* ------------------------------- Beviteli elemek ------------------------------- */
@@ -308,7 +33,6 @@ button, .submit input, input[type="submit"] {
     max-width: max-content;
     font-family: sans-serif;
     font-size: 1em;
-    
     cursor: pointer;
     color: var(--fontlight2);
     background-color: var(--button);
@@ -316,37 +40,29 @@ button, .submit input, input[type="submit"] {
     border-radius: 0.5em;
     transition: 0.3s;
     padding: 0.5em 1em;
-
     box-shadow: 
     -2px -2px 5px rgba(0, 0, 0, 0.1),     /* sötét árnyék fent-balra */
     2px 2px 5px rgba(0, 0, 0, 0.1);  /* világos fény lent-jobbra */
-
 }
 
 button:hover, .submit input:hover, input[type="submit"]:hover {
     background-color: var(--buttonhover);
-    /*box-shadow: 0px 0px 5px 1px #012c49;*/
-}
-
-button svg {
-    fill: var(--fontlight2);
 }
 
 button:disabled, button:disabled:hover {
     background-color: var(--contentbg);
-  color: var(--fontlight3); /* halvány szöveg a minimális kontraszthoz */
-  border: none;
-  padding: 0.4em 0.75em;
+    color: var(--fontlight3); /* halvány szöveg a minimális kontraszthoz */
+    border: none;
+    padding: 0.4em 0.75em;
 
-  /* A kivésett hatás */
-  box-shadow: 
-    -2px -2px 5px rgba(0, 0, 0, 0.1),     /* sötét árnyék fent-balra */
-    2px 2px 5px rgba(0, 0, 0, 0.1);  /* világos fény lent-jobbra */
+    /* A kivésett hatás */
+    box-shadow: 
+        -2px -2px 5px rgba(0, 0, 0, 0.1),     /* sötét árnyék fent-balra */
+        2px 2px 5px rgba(0, 0, 0, 0.1);  /* világos fény lent-jobbra */
 
-
-  /* Egy kis betűstílus */
-  font-weight: bold;
-  cursor: default;
+    /* Egy kis betűstílus */
+    font-weight: bold;
+    cursor: default;
 }
 
 button:focus {
@@ -367,20 +83,7 @@ select, input {
     /*background-image: linear-gradient(to top, var(--fontlight), var(--fontlight2) 33%);*/
 }
 
-textarea {
-    width: 100%;
-    height: 10ch;
-    border: 1px solid var(--lightborder);
-    font-family: "roboto";
-    font-size: 1em;
-    border-radius: 0.45em;
-    padding: 0.25em 0.5em;
-    line-height: 1.1;
-    background-color: var(--selectbg);
-    color: var(--basefont);
-}
-
-textarea:focus, input:focus, select:focus {
+input:focus, select:focus {
     outline: 1px solid var(--buttonborder);
     border: 1px solid var(--buttonborder);
 }

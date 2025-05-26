@@ -161,7 +161,11 @@ function eredmenyKiErtekel(rawjson) {
         if(json.retcode == 410)
             disableAllFields();
 
-        alert(json.uzenet);
+        Swal.fire({
+            title: "HIBA!",
+            text: json.uzenet,
+            icon: "error",
+        });
         if(json.retcode == 406)
             setRow();
     }
@@ -183,9 +187,22 @@ function eredmenyKiErtekel(rawjson) {
 
         if(json.retcode == 202 || json.retcode == 204)
         {
+            let title, icon;
+            if(json.retcode == 202) {
+                title = "Gratulálunk!";
+                icon = "success";
+            }
+            else {
+                title = "Sajnáljuk!";
+                icon = "error";
+            }
             // A késleltetés nélkül korábban jelenik meg az üzenet, mint ahogy a háttérben a script befejeződik
             setTimeout(() => {
-                alert(json.uzenet);
+                Swal.fire({
+                    title: title,
+                    text: json.uzenet,
+                    icon: icon
+                });
                 disableAllFields();
             }, 0);
             jatekaktiv = false;
