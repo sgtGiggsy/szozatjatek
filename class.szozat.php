@@ -3,6 +3,7 @@ Class Szozat
 {
     public static $should_enqueue_assets = false;
 
+//? Plugin betöltése
     public static function init() {
         if (is_admin()) {
             add_action('admin_init', [self::class, 'handle_admin_post']);
@@ -13,9 +14,11 @@ Class Szozat
         add_action('init', [self::class, 'add_rewrite_rule']);
     }
     
+//? Install, deaktivációs és eltávolítási hookok
+    //! NEM TESZTELT EGYIK SEM
     public static function plugin_activation() {
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-        require_once plugin_dir_path(__FILE__) . 'includes/db-schema.php';
+        require_once SZOZAT_PLUGIN_DIR . 'includes/db-schema.php';
 
         global $wpdb;
         $prefix = $wpdb->prefix;
@@ -40,8 +43,7 @@ Class Szozat
         flush_rewrite_rules();
     }
 
-    public static function plugin_deactivation()
-    {
+    public static function plugin_deactivation() {
         flush_rewrite_rules();
     }
 
@@ -60,7 +62,7 @@ Class Szozat
     }
 
     public static function betolto_szavak_fajlbol() {
-        $file = plugin_dir_path(__FILE__) . 'includes/szavak.txt';
+        $file = SZOZAT_PLUGIN_DIR . 'includes/szavak.txt';
 
         if (!file_exists($file)) {
             return [];
@@ -79,6 +81,7 @@ Class Szozat
         return $szavak;
     }
 
+//? Alap működéshez szükséges metódusok
     public static function register_shortcodes($atts) {
         add_shortcode('szozat_jatek', [__CLASS__, 'render_game']);
     }
@@ -96,25 +99,7 @@ Class Szozat
         );
     }
 
-    public static function render_game() {
-        $feladvany_id = get_query_var('feladvany_id'); // pl. 23
-
-        self::$should_enqueue_assets = true;
-        ob_start();
-
-        // Ha a views könyvtár a plugin gyökér alatt van, akkor így adod meg az útvonalat:
-        include SZOZAT_PLUGIN_DIR . 'views/szozat-view.php';
-
-        return ob_get_clean();
-    }
-
-    public static function handle_request() {
-        if (get_query_var('szozat_page')) {
-            include plugin_dir_path(__FILE__) . 'views/szozat-view.php';
-            exit;
-        }
-    }
-
+//? Admin felület metódusai
     public static function admin_menu() {
         add_menu_page(
             'Szózat beállítások',       // Oldal címe (title)
@@ -130,6 +115,13 @@ Class Szozat
     public static function admin_page() {
         $feladvanyok = self::feladvanyok_listaja();
         include SZOZAT_PLUGIN_DIR . 'views/szoadmin-view.php';
+    }
+
+    public static function handle_admin_post() {
+        if(isset($_POST['feladvany']))
+        {
+            self::post_feladvany();
+        }
     }
 
     private static function post_feladvany() {
@@ -191,19 +183,13 @@ Class Szozat
         }
     }
 
-    public static function handle_admin_post() {
-        if(isset($_POST['feladvany']))
-        {
-            self::post_feladvany();
-        }
-    }
-
     private static function feladvanyok_listaja() {
         global $wpdb;
         $sql = "SELECT feladvany_id, feladvany_szoveg, egyszavas, datum FROM {$wpdb->prefix}szozat_feladvanyok ORDER BY feladvany_id DESC";
         return $wpdb->get_results($sql, ARRAY_A);
     }
 
+//? Frontend metódusok
     public static function aktualis_feladvany() {
         global $wpdb;
 
@@ -242,7 +228,7 @@ Class Szozat
 
         wp_enqueue_script(
             'szozat-frontend',
-            plugins_url('includes/szozat-frontend.js', __FILE__),
+            plugin_dir_url(__FILE__) . 'includes/szozat-frontend.js',
             [],
             '1.0',
             true
@@ -254,6 +240,29 @@ Class Szozat
         ]);
     }
 
+    public static function render_game() {
+        $feladvany_id = get_query_var('feladvany_id'); // pl. 23
+
+        self::$should_enqueue_assets = true;
+        ob_start();
+
+        // Ha a views könyvtár a plugin gyökér alatt van, akkor így adod meg az útvonalat:
+        include SZOZAT_PLUGIN_DIR . 'views/szozat-view.php';
+
+        return ob_get_clean();
+    }
+
+//? Widget metódusok
+    //TODO Ezek egyike sem csinál semmit, csak placeholderként szolgálnak egyelőre
+    public static function register_widgets() {
+        register_widget('Szozat_Widget');
+    }
+
+    public static function widget_init() {
+        add_action('widgets_init', [__CLASS__, 'register_widgets']);
+    }
+
+//? AJAX metódusok
     public static function register_ajax_hooks() {
         add_action('wp_ajax_szozat_megoldas', [__CLASS__, 'handle_megoldas']);
         add_action('wp_ajax_nopriv_szozat_megoldas', [__CLASS__, 'handle_megoldas']);
