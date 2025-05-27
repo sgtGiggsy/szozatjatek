@@ -2,6 +2,15 @@
 Class Szozat
 {
     public static $should_enqueue_assets = false;
+    public static $orderby = array(
+        'felhasznalo_id'    => 's.felhasznalo_id',
+        'felhasznalonev'    => 'u.user_login',
+        'bekuldottszavak'   => 's.bekuldottszo',
+        'sikeres'           => 's.megoldott',
+        'feladvanyok'       => 's.feladvanyok',
+        'sikerrata'         => 's.sikerrata',
+        'sorozathossz'      => 's.max_sorozat'
+    );
 
 //? Plugin betöltése
     public static function init() {
@@ -528,5 +537,57 @@ Class Szozat
                 $feladvany_id
             );
         return $wpdb->get_row($sql, ARRAY_A);
+    }
+
+    public static function get_statistics() {
+        global $wpdb;
+        $sql = "WITH napok AS (
+                SELECT 
+                    k.felhasznalo_id,
+                    f.nap,
+                    DATE_SUB(f.nap, INTERVAL ROW_NUMBER() OVER (
+                        PARTITION BY k.felhasznalo_id ORDER BY f.nap
+                    ) DAY) AS napcsoport
+                FROM wp_szozat_kitoltesek k
+                JOIN wp_szozat_feladvanyok f ON k.feladvany_id = f.feladvany_id
+            ),
+            sorozatok AS (
+                SELECT 
+                    felhasznalo_id,
+                    COUNT(*) AS hossz
+                FROM napok
+                GROUP BY felhasznalo_id, napcsoport
+            ),
+            statisztika AS (
+                SELECT 
+                    k.felhasznalo_id,
+                    SUM(k.kiserletszam) AS bekuldottszo,
+                    SUM(k.sikeres) AS megoldott,
+                    COUNT(*) AS feladvanyok,
+                    (SUM(k.sikeres) / COUNT(*)) AS sikerrata
+                FROM wp_szozat_kitoltesek k
+                GROUP BY k.felhasznalo_id
+            ),
+            maxsorozat AS (
+                SELECT 
+                    felhasznalo_id,
+                    MAX(hossz) AS max_sorozat
+                FROM sorozatok
+                GROUP BY felhasznalo_id
+            )
+
+            SELECT 
+                u.user_login,
+                s.felhasznalo_id,
+                s.bekuldottszo,
+                s.megoldott,
+                s.feladvanyok,
+                ROUND(s.sikerrata * 100, 2) AS sikerrata_szazalek,
+                m.max_sorozat AS leghosszabb_sorozat
+            FROM statisztika s
+            LEFT JOIN maxsorozat m ON s.felhasznalo_id = m.felhasznalo_id
+            LEFT JOIN wp_users u ON u.ID = s.felhasznalo_id
+            ORDER BY s.sikerrata DESC;";
+        $results = $wpdb->get_results($sql, ARRAY_A);
     }
 }
