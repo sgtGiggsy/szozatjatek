@@ -19,6 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'SZOZAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 require_once SZOZAT_PLUGIN_DIR . 'class.szozat.php';
+require_once SZOZAT_PLUGIN_DIR . 'class.szozat-widget.php';
 Szozat::init();
 
 // Hookok a plugin aktiváláshoz, deaktiváláshoz, eltávolításhoz
@@ -33,4 +34,3 @@ add_action('admin_notices', ['Szozat', 'admin_notices']);
 // Frontend felület
 add_filter('query_vars', ['Szozat', 'register_query_var']);
 add_action('wp_footer', ['Szozat', 'enqueue_assets']);
-//add_action('wp_enqueue_scripts', ['Szozat', 'enqueue_assets']);
