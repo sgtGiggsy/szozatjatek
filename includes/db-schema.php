@@ -6,9 +6,11 @@ function szozat_get_table_schemas($prefix, $charset_collate) {
         "CREATE TABLE {$prefix}szozat_feladvanyok (
             feladvany_id INT(11) NOT NULL AUTO_INCREMENT,
             feladvany_szoveg VARCHAR(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
-            timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            nap DATE NOT NULL DEFAULT CURRENT_TIMESTAMP,
             egyszavas TINYINT(1) NOT NULL DEFAULT 1,
-            PRIMARY KEY (feladvany_id)
+            PRIMARY KEY (feladvany_id),
+            UNIQUE KEY feladvany_szoveg (feladvany_szoveg),
+            KEY nap (nap)
         ) $charset_collate;",
 
         // szozat_kitoltesek
@@ -28,7 +30,7 @@ function szozat_get_table_schemas($prefix, $charset_collate) {
         // szozat_legalisszavak
         "CREATE TABLE {$prefix}szozat_legalisszavak (
             szo VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
-            PRIMARY KEY (szo)
+            KEY (szo)
         ) $charset_collate;"
     ];
 }

@@ -158,7 +158,7 @@ function eredmenyKiErtekel(rawjson) {
     let json = rawjson.data;
     if(json.retcode < 200 || json.retcode > 204)
     {
-        if(json.retcode == 410)
+        if(json.retcode == 423)
             disableAllFields();
 
         Swal.fire({

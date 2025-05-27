@@ -3,24 +3,6 @@
 if ( ! defined( 'ABSPATH' ) ) {
     die();
 }
-global $wpdb;
-global $table_prefix;
-$jelenszo = $wpdb->get_row("SELECT feladvany_id, feladvany_szoveg FROM {$wpdb->prefix}szozat_feladvanyok ORDER BY RAND() LIMIT 1;");
-update_user_meta(get_current_user_id(), 'szozat_feladvany_id', $jelenszo->feladvany_id);
-$betuszam = mb_strlen($jelenszo->feladvany_szoveg, 'UTF-8');
-
-//A kitöltés mentése az adatbázisba
-$wpdb->insert(
-    "{$wpdb->prefix}szozat_kitoltesek",
-    [
-        'felhasznalo_id' => get_current_user_id(),
-        'feladvany_id' => $jelenszo->feladvany_id
-    ],
-    [
-        '%d',
-        '%d'
-    ]
-);
 
 ?><div class="jatek" id="jatekter">
     <table id="jatektabla" data-betuszam='<?=$betuszam?>'><?php

@@ -130,7 +130,8 @@ Class Szozat
             isset($_POST['szozat_nonce']) &&
             wp_verify_nonce($_POST['szozat_nonce'], 'szozat_admin_form')
         ) {
-            $ujszo = mb_strtoupper($_POST['feladvany']);
+            $ujszo = trim(mb_strtoupper($_POST['feladvany']));
+
             $sql = $wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}szozat_legalisszavak WHERE szo = %s", $ujszo);
 
             // Ha nincs találat az ismert szavak között, hiba dobása
@@ -140,15 +141,27 @@ Class Szozat
                     "{$wpdb->prefix}szozat_feladvanyok",
                     [
                         'feladvany_szoveg' => $ujszo,
+                        'nap' => $_POST['nap'],
                         'egyszavas' => 1
                     ],
                     [
                         '%s',
+                        '%s',
                         '%d'
                     ]
                 );
-                wp_redirect(admin_url('admin.php?page=szozat_settings&success=1'));
-                exit;
+
+                // Ha a feladvány létezik már, akkor hibaüzenet a felhasználó részére
+                if ($wpdb->last_error) {
+                    wp_redirect(admin_url('admin.php?page=szozat_settings&error=duplikalt_szo&szo=' . urlencode($ujszo)));
+                    exit;
+                }
+                else
+                {
+                    // Ha sikeres, akkor átirányítjuk a beállítások oldalra
+                    wp_redirect(admin_url('admin.php?page=szozat_settings&success=1'));
+                    exit;
+                }
             }
             else
             {
@@ -173,6 +186,8 @@ Class Szozat
                 {
                     case "ismeretlen_szo" : echo "<p><strong>Hiba:</strong> A(z) " . mb_strtoupper($_GET['szo']) . " nem egy felismert magyar szó, ezért nem adható az adatbázishoz!</p>";
                         break;
+                    case "duplikalt_szo" : echo "<p><strong>Hiba:</strong> A(z) " . mb_strtoupper($_GET['szo']) . " már szerepel a feladványok között!</p>";
+                        break;
                 }
             }
 
@@ -185,18 +200,11 @@ Class Szozat
 
     private static function feladvanyok_listaja() {
         global $wpdb;
-        $sql = "SELECT feladvany_id, feladvany_szoveg, egyszavas, datum FROM {$wpdb->prefix}szozat_feladvanyok ORDER BY feladvany_id DESC";
+        $sql = "SELECT feladvany_id, feladvany_szoveg, egyszavas, nap FROM {$wpdb->prefix}szozat_feladvanyok ORDER BY feladvany_id DESC";
         return $wpdb->get_results($sql, ARRAY_A);
     }
 
 //? Frontend metódusok
-    public static function aktualis_feladvany() {
-        global $wpdb;
-
-        $sql = $wpdb->prepare("SELECT feladvany_szoveg FROM {$wpdb->prefix}szozat_feladvanyok ORDER BY feladvany_id DESC LIMIT 1;");
-        return $wpdb->get_var($sql);
-    }
-
     public static function enqueue_assets() {
         if (!self::$should_enqueue_assets) {
             return;
@@ -241,9 +249,21 @@ Class Szozat
     }
 
     public static function render_game() {
-        $feladvany_id = get_query_var('feladvany_id'); // pl. 23
-
         self::$should_enqueue_assets = true;
+
+        // Bekérjük a feladványt
+        $jelenszo = self::get_feladvany();
+        if($jelenszo['sikeres'] === -1) {
+            return '<h3>Hiba: A kért feladvány nem létezik!</h3>';
+        }
+        elseif(!is_null($jelenszo['sikeres'])) {
+            // Ha már lezárult a feladvány, nem lehet újra kitölteni
+            return '<h3>Ezt a feladvány már megoldottad korábban!</h3>';
+        }
+
+        //TODO Itt lehetne átadni a korábban beírt szavak JSON-jét array-be,
+        //TODO hogy folytatható legyen a korábban megkezdett játék
+        $betuszam = mb_strlen($jelenszo['feladvany_szoveg']);
         ob_start();
 
         // Ha a views könyvtár a plugin gyökér alatt van, akkor így adod meg az útvonalat:
@@ -301,24 +321,19 @@ Class Szozat
             $jelenszo = mb_strtoupper($wpdb->get_var($sql));
             $betuszam = mb_strlen($jelenszo);
 
-            $sql = $wpdb->prepare(
-                "SELECT kitoltes_id, valaszok
-                FROM {$wpdb->prefix}szozat_kitoltesek
-                WHERE felhasznalo_id = %d
-                    AND feladvany_id = %d
-                    AND sikeres IS NULL
-                ORDER BY kitoltes_id DESC
-                LIMIT 1",
-                get_current_user_id(),
-                $feladvany_id
-            );
-
-            $jelenkitoltes = $wpdb->get_row($sql, ARRAY_A);
+            $jelenkitoltes = self::auth_kitoltes($feladvany_id);
 
             if(!$jelenkitoltes)
             {
-                //TODO: Esetleg igény lehet ennél bővebb hibakezelésre
-                $retcode = 204;
+                // Mostanra léteznie kell kitöltésnek,
+                // ha nincs, akkor nem létezik a feladvány, vagy a kitöltés
+                $retcode = 404;
+            }
+            elseif(!is_null($jelenkitoltes['sikeres']))
+            {
+                // Ha a kiválasztott feladványhoz már létezik kitöltés, de lezárult (1-es, vagy 0-s),
+                // nem engedjük az újrapróbálkozást
+                $retcode = 423;
             }
             else
             {
@@ -421,8 +436,14 @@ Class Szozat
             case 403:
                 $uzenet = "Nincs jogosultságod ehhez az oldalhoz!";
                 break;
+            case 404:
+                $uzenet = "A kért feladvány nem létezik!";
+                break;
             case 406:
                 $uzenet = "Kérlek létező magyar szót adj meg!";
+                break;
+            case 423:
+                $uzenet = "A feladványt nem lehet újra kitölteni!";
                 break;
             default:
                 http_response_code(500);
@@ -433,5 +454,79 @@ Class Szozat
             'uzenet' => $uzenet,
             'eredmeny' => $ret
         ]);
+    }
+
+//? Segéd metódusok
+    public static function get_feladvany() {
+        global $wpdb;
+        $feladvany_id = get_query_var('feladvany_id');
+
+        if(!$feladvany_id)
+            $feladvany_id = date('Y-m-d'); // Ha nincs megadva, akkor az aktuális nap feladványa
+
+        $sql = $wpdb->prepare(
+            "SELECT feladvany_id, feladvany_szoveg, null AS sikeres FROM {$wpdb->prefix}szozat_feladvanyok WHERE nap = %s",
+            $feladvany_id
+        );
+
+        $kivalasztott_feladvany = $wpdb->get_row($sql, ARRAY_A);
+
+        // Ellenőrizzük, hogy van-e ilyen feladvány
+        if($kivalasztott_feladvany === null) {
+            return ['sikeres' => -1]; // Nincs ilyen feladvány
+        }
+        else
+        {
+            $jelenkitoltes = self::auth_kitoltes($kivalasztott_feladvany['feladvany_id']);
+            if($jelenkitoltes)
+            {
+                if($jelenkitoltes['sikeres'] === null)
+                {
+                    // Ha a kiválasztott feladványhoz már létezik kitöltés, de még nem zárult le, akkor visszaadjuk a feladványt
+                    update_user_meta(get_current_user_id(), 'szozat_feladvany_id', $kivalasztott_feladvany['feladvany_id']);
+
+                    // A két asszociatív tömböt egyesítjük, hogy a kitöltés adatai is benne legyenek
+                    // Mind a két tömbben szerepel a 'sikeres' kulcs, de ezesetben mindkettőben 'null'
+                    return $kivalasztott_feladvany + $jelenkitoltes;
+                }
+                else
+                {
+                    // Ha már van kitöltés, de lezárult, akkor csak a korábbi eredményt adjuk vissza
+                    return $jelenkitoltes;
+                }
+            }
+            else
+            {
+                // Ha a feladványhoz még nem létezik kitöltés, akkor létrehozzuk
+                $wpdb->insert(
+                    "{$wpdb->prefix}szozat_kitoltesek",
+                    [
+                        'felhasznalo_id' => get_current_user_id(),
+                        'feladvany_id' => $kivalasztott_feladvany['feladvany_id']
+                    ],
+                    [
+                        '%d',
+                        '%d'
+                    ]
+                );
+                update_user_meta(get_current_user_id(), 'szozat_feladvany_id', $kivalasztott_feladvany['feladvany_id']);
+                return $kivalasztott_feladvany;
+            }
+        }
+    }
+
+    public static function auth_kitoltes($feladvany_id) {
+        global $wpdb;
+        $sql = $wpdb->prepare(
+                "SELECT kitoltes_id, valaszok, sikeres
+                FROM {$wpdb->prefix}szozat_kitoltesek
+                WHERE felhasznalo_id = %d
+                    AND feladvany_id = %d
+                ORDER BY kitoltes_id DESC
+                LIMIT 1",
+                get_current_user_id(),
+                $feladvany_id
+            );
+        return $wpdb->get_row($sql, ARRAY_A);
     }
 }
