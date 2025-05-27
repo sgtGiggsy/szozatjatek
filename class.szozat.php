@@ -22,6 +22,7 @@ Class Szozat
         add_action('init', [self::class, 'register_shortcodes']);
         add_action('init', [self::class, 'register_ajax_hooks']);
         add_action('init', [self::class, 'add_rewrite_rule']);
+        add_action('widgets_init', [self::class, 'register_widgets']);
     }
     
 //? Install, deaktivációs és eltávolítási hookok
@@ -40,17 +41,18 @@ Class Szozat
             dbDelta($sql);
         }
 
+        $wpdb->query("ALTER TABLE {$prefix}szozat_kitoltesek
+            ADD FOREIGN KEY (felhasznalo_id) REFERENCES {$prefix}users(ID) ON DELETE CASCADE,
+            ADD FOREIGN KEY (feladvany_id) REFERENCES {$prefix}szozat_feladvanyok(feladvany_id) ON DELETE CASCADE;");
+
         // Alapértelmezett szavak betöltése, ha még üres a tábla
         $table = "{$prefix}szozat_legalisszavak";
         $count = (int) $wpdb->get_var("SELECT COUNT(*) FROM $table");
 
         if ($count === 0) {
-            $szavak = self::betolto_szavak_fajlbol();
-            foreach ($szavak as $szo) {
-                $wpdb->insert($table, ['szo' => $szo], ['%s']);
-            }
+            populate_legalisszavak();
         }
-        flush_rewrite_rules();
+        //flush_rewrite_rules();
     }
 
     public static function plugin_deactivation() {
@@ -64,31 +66,10 @@ Class Szozat
         // Eltávolításkor minden tisztítás
         delete_option('szozat_settings');
         // Táblák törlése
-        $wpdb->query("DROP TABLE IF EXISTS {$prefix}szozat_feladvanyok");
         $wpdb->query("DROP TABLE IF EXISTS {$prefix}szozat_kitoltesek");
         $wpdb->query("DROP TABLE IF EXISTS {$prefix}szozat_legalisszavak");
-        // Ha saját adatbázistábla lenne: DROP TABLE stb.
+        $wpdb->query("DROP TABLE IF EXISTS {$prefix}szozat_feladvanyok");
         flush_rewrite_rules();
-    }
-
-    public static function betolto_szavak_fajlbol() {
-        $file = SZOZAT_PLUGIN_DIR . 'includes/szavak.txt';
-
-        if (!file_exists($file)) {
-            return [];
-        }
-
-        $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        $szavak = [];
-
-        foreach ($lines as $szo) {
-            $szo = trim($szo);
-            if (!empty($szo)) {
-                $szavak[] = mb_strtoupper($szo);
-            }
-        }
-
-        return $szavak;
     }
 
 //? Alap működéshez szükséges metódusok
@@ -291,8 +272,28 @@ Class Szozat
         register_widget('Szozat_Widget');
     }
 
-    public static function widget_init() {
-        add_action('widgets_init', [__CLASS__, 'register_widgets']);
+    public static function render_widget_stats() {
+        global $wpdb;
+
+        // Példa lekérdezés — természetesen használd a saját statisztikádat
+        $results = $wpdb->get_results("
+            SELECT user_login, COUNT(*) AS darab
+            FROM wp_users u
+            JOIN wp_szozat_kitoltesek k ON k.felhasznalo_id = u.ID
+            GROUP BY u.ID
+            ORDER BY darab DESC
+            LIMIT 5
+        ");
+
+        if (!$results) return '<p>Nincs statisztikai adat.</p>';
+
+        $html = '<ul>';
+        foreach ($results as $row) {
+            $html .= '<li>' . esc_html($row->user_login) . ' – ' . intval($row->darab) . ' kitöltés</li>';
+        }
+        $html .= '</ul>';
+
+        return $html;
     }
 
 //? AJAX metódusok
@@ -543,8 +544,7 @@ Class Szozat
         return $wpdb->get_row($sql, ARRAY_A);
     }
 
-    public static function get_singleuser_stats($uid = null)
-    {
+    public static function get_singleuser_stats($uid = null) {
         if(!$uid)
             $uid = get_current_user_id();
         return self::get_statistics('sikerrata', 'DESC', 1, 0, get_current_user_id())[0];
@@ -580,12 +580,22 @@ Class Szozat
                 GROUP BY k.felhasznalo_id, f.nap
             ),
             osszes_sorozat AS (
-                SELECT felhasznalo_id, napcsoport, COUNT(*) AS hossz
+                SELECT 
+                    felhasznalo_id, 
+                    napcsoport,
+                    MIN(nap) AS sorozat_eleje,
+                    MAX(nap) AS sorozat_vege,
+                    COUNT(*) AS hossz
                 FROM minden_nap
                 GROUP BY felhasznalo_id, napcsoport
             ),
             sikeres_sorozat AS (
-                SELECT felhasznalo_id, napcsoport, COUNT(*) AS hossz
+                SELECT 
+                    felhasznalo_id, 
+                    napcsoport,
+                    MIN(nap) AS sorozat_eleje,
+                    MAX(nap) AS sorozat_vege,
+                    COUNT(*) AS hossz
                 FROM sikeres_nap
                 GROUP BY felhasznalo_id, napcsoport
             ),
@@ -595,7 +605,7 @@ Class Szozat
                     SUM(k.kiserletszam) AS bekuldottszo,
                     SUM(k.sikeres) AS megoldott,
                     COUNT(*) AS feladvanyok,
-                    AVG(k.kiserletszam) AS atlag_kiserlet,
+                    ROUND(AVG(k.kiserletszam), 2) AS atlag_kiserlet,
                     (SUM(k.sikeres) / COUNT(*) * 100) AS sikerrata
                 FROM wp_szozat_kitoltesek k
                 GROUP BY k.felhasznalo_id
@@ -603,12 +613,52 @@ Class Szozat
             max_sorozatok AS (
                 SELECT 
                     o.felhasznalo_id,
-                    MAX(o.hossz) AS max_sorozat_hossz,
-                    MAX(s.hossz) AS max_sikeres_sorozat
+                    MAX(o.hossz) AS max_sorozat_hossz
                 FROM osszes_sorozat o
-                LEFT JOIN sikeres_sorozat s ON o.felhasznalo_id = s.felhasznalo_id
                 GROUP BY o.felhasznalo_id
+            ),
+            max_sikeres_sorozatok AS (
+                SELECT 
+                    s.felhasznalo_id,
+                    MAX(s.hossz) AS max_sikeres_sorozat
+                FROM sikeres_sorozat s
+                GROUP BY s.felhasznalo_id
+            ),
+            aktualis_napcsoport AS (
+                SELECT 
+                    felhasznalo_id,
+                    MAX(napcsoport) AS aktualis_napcsoport
+                FROM osszes_sorozat
+                GROUP BY felhasznalo_id
+            ),
+            aktualis_sorozat AS (
+                SELECT 
+                    o.felhasznalo_id,
+                    o.sorozat_eleje,
+                    o.sorozat_vege,
+                    o.hossz
+                FROM osszes_sorozat o
+                JOIN aktualis_napcsoport a 
+                    ON o.felhasznalo_id = a.felhasznalo_id AND o.napcsoport = a.aktualis_napcsoport
+            ),
+            aktualis_sikeres_napcsoport AS (
+                SELECT 
+                    felhasznalo_id,
+                    MAX(napcsoport) AS aktualis_sikeres_napcsoport
+                FROM sikeres_sorozat
+                GROUP BY felhasznalo_id
+            ),
+            aktualis_sikeres_sorozat AS (
+                SELECT 
+                    s.felhasznalo_id,
+                    s.sorozat_eleje,
+                    s.sorozat_vege,
+                    s.hossz
+                FROM sikeres_sorozat s
+                JOIN aktualis_sikeres_napcsoport a 
+                    ON s.felhasznalo_id = a.felhasznalo_id AND s.napcsoport = a.aktualis_sikeres_napcsoport
             )
+
             SELECT 
                 u.ID AS felhasznalo_id,
                 u.display_name,
@@ -618,10 +668,19 @@ Class Szozat
                 st.atlag_kiserlet,
                 ROUND(st.sikerrata, 2) AS sikerrata,
                 COALESCE(ms.max_sorozat_hossz, 0) AS leghosszabb_sorozat,
-                COALESCE(ms.max_sikeres_sorozat, 0) AS leghosszabb_sikersorozat
+                COALESCE(mss.max_sikeres_sorozat, 0) AS leghosszabb_sikersorozat,
+                aa.sorozat_eleje AS aktualis_sorozat_kezdete,
+                aa.sorozat_vege AS aktualis_sorozat_vege,
+                aa.hossz AS aktualis_sorozat_hossza,
+                sa.sorozat_eleje AS aktualis_sikeres_sorozat_kezdete,
+                sa.sorozat_vege AS aktualis_sikeres_sorozat_vege,
+                sa.hossz AS aktualis_sikeres_sorozat_hossza
             FROM wp_users u
             LEFT JOIN stat st ON u.ID = st.felhasznalo_id
             LEFT JOIN max_sorozatok ms ON u.ID = ms.felhasznalo_id
+            LEFT JOIN max_sikeres_sorozatok mss ON u.ID = mss.felhasznalo_id
+            LEFT JOIN aktualis_sorozat aa ON u.ID = aa.felhasznalo_id
+            LEFT JOIN aktualis_sikeres_sorozat sa ON u.ID = sa.felhasznalo_id
             $felhszur
             ORDER BY " . self::$orderby[$rendez] . " $irany
             LIMIT $limit OFFSET $offset;";
