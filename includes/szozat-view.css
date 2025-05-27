@@ -141,7 +141,7 @@ td:nth-child(1), .trlink :nth-child(1) a {
 }
 
 #jatektabla {
-    /*width: 100%;*/
+    width: unset;
     border-spacing: 0.3em;
 }
 

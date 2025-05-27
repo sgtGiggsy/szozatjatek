@@ -3,13 +3,14 @@ Class Szozat
 {
     public static $should_enqueue_assets = false;
     public static $orderby = array(
-        'felhasznalo_id'    => 's.felhasznalo_id',
+        'felhasznalo_id'    => 'u.id',
         'felhasznalonev'    => 'u.user_login',
-        'bekuldottszavak'   => 's.bekuldottszo',
-        'sikeres'           => 's.megoldott',
-        'feladvanyok'       => 's.feladvanyok',
-        'sikerrata'         => 's.sikerrata',
-        'sorozathossz'      => 's.max_sorozat'
+        'bekuldottszavak'   => 'st.bekuldottszo',
+        'sikeres'           => 'st.megoldott',
+        'feladvanyok'       => 'st.feladvanyok',
+        'sikerrata'         => 'st.sikerrata',
+        'sorozathossz'      => 'ms.max_sorozat_hossz',
+        'sikeresorozat'     => 'ms.max_sikeres_sorozat'
     );
 
 //? Plugin betöltése
@@ -267,7 +268,10 @@ Class Szozat
         }
         elseif(!is_null($jelenszo['sikeres'])) {
             // Ha már lezárult a feladvány, nem lehet újra kitölteni
-            return '<h3>Ezt a feladvány már megoldottad korábban!</h3>';
+            echo '<h3>Ezt a feladvány már megoldottad korábban!</h3>';
+            $szemelyes = self::get_singleuser_stats();
+            include SZOZAT_PLUGIN_DIR . 'views/szemelyes-view.php';
+            return null;
         }
 
         //TODO Itt lehetne átadni a korábban beírt szavak JSON-jét array-be,
@@ -539,9 +543,20 @@ Class Szozat
         return $wpdb->get_row($sql, ARRAY_A);
     }
 
-    public static function get_statistics() {
+    public static function get_singleuser_stats($uid = null)
+    {
+        if(!$uid)
+            $uid = get_current_user_id();
+        return self::get_statistics('sikerrata', 'DESC', 1, 0, get_current_user_id())[0];
+    }
+
+    public static function get_statistics($rendez = 'sikerrata', $irany = 'DESC', $limit = 10, $offset = 0, $felhasznalo_id = null) {
         global $wpdb;
-        $sql = "WITH napok AS (
+        $felhszur = '';
+        if($felhasznalo_id)
+            $felhszur = $wpdb->prepare('WHERE u.ID = %d', $felhasznalo_id);
+
+        $sql = "WITH minden_nap AS (
                 SELECT 
                     k.felhasznalo_id,
                     f.nap,
@@ -549,45 +564,68 @@ Class Szozat
                         PARTITION BY k.felhasznalo_id ORDER BY f.nap
                     ) DAY) AS napcsoport
                 FROM wp_szozat_kitoltesek k
-                JOIN wp_szozat_feladvanyok f ON k.feladvany_id = f.feladvany_id
+                JOIN wp_szozat_feladvanyok f ON f.feladvany_id = k.feladvany_id
+                GROUP BY k.felhasznalo_id, f.nap
             ),
-            sorozatok AS (
+            sikeres_nap AS (
                 SELECT 
-                    felhasznalo_id,
-                    COUNT(*) AS hossz
-                FROM napok
+                    k.felhasznalo_id,
+                    f.nap,
+                    DATE_SUB(f.nap, INTERVAL ROW_NUMBER() OVER (
+                        PARTITION BY k.felhasznalo_id ORDER BY f.nap
+                    ) DAY) AS napcsoport
+                FROM wp_szozat_kitoltesek k
+                JOIN wp_szozat_feladvanyok f ON f.feladvany_id = k.feladvany_id
+                WHERE k.sikeres = 1
+                GROUP BY k.felhasznalo_id, f.nap
+            ),
+            osszes_sorozat AS (
+                SELECT felhasznalo_id, napcsoport, COUNT(*) AS hossz
+                FROM minden_nap
                 GROUP BY felhasznalo_id, napcsoport
             ),
-            statisztika AS (
+            sikeres_sorozat AS (
+                SELECT felhasznalo_id, napcsoport, COUNT(*) AS hossz
+                FROM sikeres_nap
+                GROUP BY felhasznalo_id, napcsoport
+            ),
+            stat AS (
                 SELECT 
                     k.felhasznalo_id,
                     SUM(k.kiserletszam) AS bekuldottszo,
                     SUM(k.sikeres) AS megoldott,
                     COUNT(*) AS feladvanyok,
-                    (SUM(k.sikeres) / COUNT(*)) AS sikerrata
+                    AVG(k.kiserletszam) AS atlag_kiserlet,
+                    (SUM(k.sikeres) / COUNT(*) * 100) AS sikerrata
                 FROM wp_szozat_kitoltesek k
                 GROUP BY k.felhasznalo_id
             ),
-            maxsorozat AS (
+            max_sorozatok AS (
                 SELECT 
-                    felhasznalo_id,
-                    MAX(hossz) AS max_sorozat
-                FROM sorozatok
-                GROUP BY felhasznalo_id
+                    o.felhasznalo_id,
+                    MAX(o.hossz) AS max_sorozat_hossz,
+                    MAX(s.hossz) AS max_sikeres_sorozat
+                FROM osszes_sorozat o
+                LEFT JOIN sikeres_sorozat s ON o.felhasznalo_id = s.felhasznalo_id
+                GROUP BY o.felhasznalo_id
             )
-
             SELECT 
-                u.user_login,
-                s.felhasznalo_id,
-                s.bekuldottszo,
-                s.megoldott,
-                s.feladvanyok,
-                ROUND(s.sikerrata * 100, 2) AS sikerrata_szazalek,
-                m.max_sorozat AS leghosszabb_sorozat
-            FROM statisztika s
-            LEFT JOIN maxsorozat m ON s.felhasznalo_id = m.felhasznalo_id
-            LEFT JOIN wp_users u ON u.ID = s.felhasznalo_id
-            ORDER BY s.sikerrata DESC;";
-        $results = $wpdb->get_results($sql, ARRAY_A);
+                u.ID AS felhasznalo_id,
+                u.display_name,
+                st.bekuldottszo,
+                st.megoldott,
+                st.feladvanyok,
+                st.atlag_kiserlet,
+                ROUND(st.sikerrata, 2) AS sikerrata,
+                COALESCE(ms.max_sorozat_hossz, 0) AS leghosszabb_sorozat,
+                COALESCE(ms.max_sikeres_sorozat, 0) AS leghosszabb_sikersorozat
+            FROM wp_users u
+            LEFT JOIN stat st ON u.ID = st.felhasznalo_id
+            LEFT JOIN max_sorozatok ms ON u.ID = ms.felhasznalo_id
+            $felhszur
+            ORDER BY " . self::$orderby[$rendez] . " $irany
+            LIMIT $limit OFFSET $offset;";
+
+        return $wpdb->get_results($sql, ARRAY_A);
     }
 }
