@@ -1,136 +1,16 @@
 /* Színmeghatározások */
 :root {
-    --body: #fff;
     --basefont: #000000;
-    --fontlight2: #f7f7f7;
-    --fontlight3: #f5f5f5;
     --contentbg: #ededed;
-    --button: #007acc;
-    --buttonborder: #004b7e;
-    --buttonhover: #1c4663;
-    --lightborder: #9aa3a7;
-    --selectbg: #f7f7f7;
-    --thead: #969494;
     --tsoro: #e0e0e0;
     --tsore: #bbbbbb;
     --shadow: #25252646;
-    --scrollthumb: #35454d;
-    --online: #018216;
-    --offline: #990000;
-    --important: #e1bc00;
+    --inpborder: #35454d;
+    --talalat: #018216;
+    --hianyzik: #990000;
+    --rosszhely: #e1bc00;
 }
-
-/* ------------------------------- Az oldal "alapbeállításai" ------------------------------- */
-
-
-h1, h2, h4 {
-    margin-top: 0px;
-    margin-bottom: 0px;
-}
-
-/* ------------------------------- Beviteli elemek ------------------------------- */
-button, .submit input, input[type="submit"] {
-    max-width: max-content;
-    font-family: sans-serif;
-    font-size: 1em;
-    cursor: pointer;
-    color: var(--fontlight2);
-    background-color: var(--button);
-    border: none;
-    border-radius: 0.5em;
-    transition: 0.3s;
-    padding: 0.5em 1em;
-    box-shadow: 
-    -2px -2px 5px rgba(0, 0, 0, 0.1),     /* sötét árnyék fent-balra */
-    2px 2px 5px rgba(0, 0, 0, 0.1);  /* világos fény lent-jobbra */
-}
-
-button:hover, .submit input:hover, input[type="submit"]:hover {
-    background-color: var(--buttonhover);
-}
-
-button:disabled, button:disabled:hover {
-    background-color: var(--contentbg);
-    color: var(--fontlight3); /* halvány szöveg a minimális kontraszthoz */
-    border: none;
-    padding: 0.4em 0.75em;
-
-    /* A kivésett hatás */
-    box-shadow: 
-        -2px -2px 5px rgba(0, 0, 0, 0.1),     /* sötét árnyék fent-balra */
-        2px 2px 5px rgba(0, 0, 0, 0.1);  /* világos fény lent-jobbra */
-
-    /* Egy kis betűstílus */
-    font-weight: bold;
-    cursor: default;
-}
-
-button:focus {
-    outline: none;
-    border: none;
-}
-
-select, input {
-    /*width: 20ch;*/
-    color: var(--basefont);
-    border: 1px solid var(--lightborder);
-    border-radius: 0.25em;
-    padding: 0.25em 0.5em;
-    font-size: 1rem;
-    cursor: auto;
-    line-height: 1.1;
-    background-color: var(--selectbg);
-    /*background-image: linear-gradient(to top, var(--fontlight), var(--fontlight2) 33%);*/
-}
-
-input:focus, select:focus {
-    outline: 1px solid var(--buttonborder);
-    border: 1px solid var(--buttonborder);
-}
-
-label {
-    position: relative;
-    font-size: 1.2em;
-    font-weight: bold;
-}
-
-/* ------------------------------- Táblázatok ------------------------------- */
-/* Táblázat alapbeállítások */
-table {
-    display: table;
-    table-layout: fixed;
-}
-
-thead {
-    background-color: var(--thead);
-    font-size: 1.1em;
-    font-weight: bold;
-}
-
-thead, tbody {
-    width: 100%;
-}
-
-thead tr {background: none !important }
-
-td, th {
-    border: 0px;
-    padding: 0.4em 0.3em 0.4em 0.3em;
-    text-align: left;
-}
-
-tr:nth-child(even) {
-    background-color: var(--tsore)
-}
-
-tr:nth-child(odd) {
-    background-color: var(--tsoro)
-}
-
-td:nth-child(1), .trlink :nth-child(1) a {
-    padding-left: 0.7em;
-}
-
+/* ------------------------------- Alap stílusok ------------------------------- */
 .jatek {
     position: sticky;
     top: 0;
@@ -140,9 +20,45 @@ td:nth-child(1), .trlink :nth-child(1) a {
     align-items: center;
 }
 
+.jatek button {
+    max-width: max-content;
+    font-family: sans-serif;
+    font-size: 1em;
+    cursor: pointer;
+    border: none;
+    border-radius: 0.5em;
+    transition: 0.3s;
+    padding: 0.5em 1em;
+    box-shadow: 
+    -2px -2px 5px var(--shadow),     /* sötét árnyék fent-balra */
+    2px 2px 5px var(--shadow);  /* világos fény lent-jobbra */
+}
+
+.jatek button:disabled, .jatek button:disabled:hover {
+    background-color: var(--contentbg);
+    padding: 0.4em 0.75em;
+    font-weight: bold;
+    cursor: default;
+}
+
+.jatek button:focus {
+    outline: none;
+    border: none;
+}
+
 #jatektabla {
     width: unset;
     border-spacing: 0.3em;
+    display: table;
+    table-layout: fixed;
+}
+
+#jatektabla tr:nth-child(even) {
+    background-color: var(--tsore)
+}
+
+#jatektabla tr:nth-child(odd) {
+    background-color: var(--tsoro)
 }
 
 #jatektabla td {
@@ -161,11 +77,12 @@ td:nth-child(1), .trlink :nth-child(1) a {
     border: var(--shadow) solid 2px;
     border-radius: 0.2em;
     padding: 0.3em 0.05em;
+    line-height: 1.1;
 }
 
 #jatektabla input:focus {
-    border: var(--scrollthumb) solid 2px!important;
-    
+    border: var(--inpborder) solid 2px;
+    outline: 1px solid var(--inpborder);
 }
 
 /* ------------------------------- Billentyűzet ------------------------------- */
@@ -190,16 +107,16 @@ td:nth-child(1), .trlink :nth-child(1) a {
     padding: 0.8em;
     font-size: 0.9em;
     cursor: pointer;
-    border: 1px solid #bbb;
+    border: 1px solid var(--tsore);
     border-radius: 0.2em;
-    background-color: #f8f8f8;
+    background-color: var(--contentbg);
     user-select: none;
     min-width: 2em;
     text-align: center;
   }
 
   .key:hover {
-    background-color: #e0e0e0;
+    background-color: var(--tsoro);
   }
 
   .key.wide {

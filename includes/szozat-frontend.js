@@ -11,9 +11,9 @@ const EgykarakteresBetukEsSzamok = [
 
 // 0. elem = nincs találat, piros, 1. elem = találat rossz helyen, sárga, 2. elem találat jó helyen, zöld
 const colors = [
-    'var(--offline)',
-    'var(--important)',
-    'var(--online)'
+    'var(--hianyzik)',
+    'var(--rosszhely)',
+    'var(--talalat)'
 ]
 
 window.onload = function() {
