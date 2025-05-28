@@ -9,7 +9,7 @@ const EgykarakteresBetukEsSzamok = [
     "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 ];
 
-// 0. elem = nincs találat, piros, 1. elem = találat rossz helyen, sárga, 2. elem találat jó helyen, zöld
+// 0. elem = nincs találat, piros; 1. elem = találat rossz helyen, sárga; 2. elem találat jó helyen, zöld
 const colors = [
     'var(--hianyzik)',
     'var(--rosszhely)',
@@ -19,6 +19,8 @@ const colors = [
 window.onload = function() {
     setRow();
     jumpToKey(0);
+    if(typeof window.MentettKitoltes !== 'undefined')
+        folytatKitoltes(MentettKitoltes);
 }
 
 document.getElementById('jatekter').addEventListener('click' , function (event) {
@@ -70,7 +72,7 @@ function setBekuld(allapot) {
         document.getElementById("beKuld").focus();
 }
 
-function jumpToNext(id ) {
+function jumpToNext(id) {
     cursor = parseInt(id);
     if(lastkey && lastkey != 'Backspace')
     {
@@ -154,6 +156,42 @@ function setRow() {
     jumpToKey(cursor);
 }
 
+function folytatKitoltes(mentett) {
+    let sorokszama = mentett.length;
+    for(let i = 0; i < sorokszama; i++)
+    {
+        currentid = i;
+        let sor = mentett[i].valasz;
+        for(let j = 0; j < betuszam; j++)
+        {
+            let input = document.getElementById('jatekmezoinput_' + i + "_" + j);
+            input.value = sor[j];
+            if(sor[j] != "")
+                input.disabled = true;
+        }
+        sorSzinez(mentett[i].eredmeny);
+    }
+    // A következő sorra ugrunk
+    currentid++;
+    setRow();
+}
+
+function sorSzinez(eredmeny) {
+    for(let i = 0; i < betuszam; i++)
+    {
+        let bevitelem = document.getElementById('jatekmezoinput_' + currentid + "_" + i);
+        let billentyu = document.getElementById('bill-' + bevitelem.value.toLowerCase());
+        bevitelem.disabled = true;
+
+        if(eredmeny[i] > 0)
+            document.getElementById('jatekmezo_' + currentid + "_" + i).style.backgroundColor = colors[eredmeny[i]];
+
+        // Csak akkor változtatunk színt, ha még nincs háttérszín a billentyűn, vagy zöldre állítjuk, mivel csak a sárga->zöld átmenet legális
+        if(!billentyu.style.backgroundColor || eredmeny[i] == 2)
+            billentyu.style.backgroundColor = colors[eredmeny[i]]
+    }
+}
+
 function eredmenyKiErtekel(rawjson) {
     let json = rawjson.data;
     if(json.retcode < 200 || json.retcode > 204)
@@ -171,19 +209,8 @@ function eredmenyKiErtekel(rawjson) {
     }
     else
     {
-        for(let i = 0; i < betuszam; i++)
-        {
-            let bevitelem = document.getElementById('jatekmezoinput_' + currentid + "_" + i);
-            let billentyu = document.getElementById('bill-' + bevitelem.value.toLowerCase());
-            bevitelem.disabled = true;
-
-            if(json.eredmeny[i] > 0)
-                document.getElementById('jatekmezo_' + currentid + "_" + i).style.backgroundColor = colors[json.eredmeny[i]];
-
-            // Csak akkor változtatunk színt, ha még nincs háttérszín a billentyűn, vagy zöldre állítjuk, mivel csak a sárga->zöld átmenet legális
-            if(!billentyu.style.backgroundColor || json.eredmeny[i] == 2)
-                billentyu.style.backgroundColor = colors[json.eredmeny[i]]
-        }
+        // Szinezzük a sorokat és betűket a virtuális billentyűzeten
+        sorSzinez(json.eredmeny);
 
         if(json.retcode == 202 || json.retcode == 204)
         {

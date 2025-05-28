@@ -1,6 +1,7 @@
 <?php
 Class Szozat
 {
+//? Változók
     public static $should_enqueue_assets = false;
     public static $orderby = array(
         'felhasznalo_id'    => 'u.id',
@@ -11,6 +12,16 @@ Class Szozat
         'sikerrata'         => 'st.sikerrata',
         'sorozathossz'      => 'ms.max_sorozat_hossz',
         'sikersorozat'      => 'ms.max_sikeres_sorozat'
+    );
+
+    public static $uzenet = array(
+        200 => "Sikeres beküldés!",
+        202 => "Gratulálok, megoldottad a feladványt!",
+        204 => "A feladvány megoldása sikertelen!",
+        403 => "Nincs jogosultságod ehhez az oldalhoz!",
+        404 => "A kért feladvány nem létezik!",
+        406 => "Kérlek létező magyar szót adj meg!",
+        423 => "A feladványt nem lehet újra kitölteni!"
     );
 
 //? Plugin betöltése
@@ -195,36 +206,37 @@ Class Szozat
     }
 
 //? Frontend metódusok
-    public static function enqueue_assets() {
-        if (!self::$should_enqueue_assets) {
-            return;
+    public static function enqueue_assets($cssonly = false) {
+        wp_enqueue_style('szozat-style');
+        if(!$cssonly) {
+            wp_enqueue_script('sweetalert2-js');
+            wp_enqueue_style('sweetalert2-css');
+            wp_enqueue_script('szozat-frontend');
+            
+            wp_localize_script('szozat-frontend', 'SzozatAjax', [
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'nonce'    => wp_create_nonce('szozat_nonce'),
+            ]);
         }
+    }
 
-        // SweetAlert2 CSS
-        wp_enqueue_style(
+    public static function register_assets() {
+        wp_register_script(
+            'sweetalert2-js',
+            plugin_dir_url(__FILE__) . 'includes/external/sweetalert2.all.min.js',
+            [],
+            '11.22.0',
+            true
+        );
+
+        wp_register_style(
             'sweetalert2-css',
             plugin_dir_url(__FILE__) . 'includes/external/sweetalert2.min.css',
             [],
-            '11.22.0' // verziószám, lehet a fájl verziója
+            '11.22.0'
         );
-
-        // SweetAlert2 JS
-        wp_enqueue_script(
-            'sweetalert2-js',
-            plugin_dir_url(__FILE__) . 'includes/external/sweetalert2.all.min.js',
-            [],          // függőségek, pl. ['jquery'], ha kell
-            '11.22.0',    // verzió
-            true         // láb részre töltse be
-        );
-
-        wp_enqueue_style(
-            'szozat-style',
-            plugin_dir_url(__FILE__) . 'includes/szozat-view.css',
-            [],
-            '1.0'
-        );
-
-        wp_enqueue_script(
+        
+        wp_register_script(
             'szozat-frontend',
             plugin_dir_url(__FILE__) . 'includes/szozat-frontend.js',
             [],
@@ -232,30 +244,38 @@ Class Szozat
             true
         );
 
-        wp_localize_script('szozat-frontend', 'SzozatAjax', [
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce'    => wp_create_nonce('szozat_nonce'),
-        ]);
+        wp_register_style(
+            'szozat-style',
+            plugin_dir_url(__FILE__) . 'includes/szozat-view.css',
+            [],
+            '1.0'
+        );
     }
 
     public static function render_game() {
-        self::$should_enqueue_assets = true;
-
         // Bekérjük a feladványt
         $jelenszo = self::get_feladvany();
         if($jelenszo['sikeres'] === -1) {
             return '<h3>Hiba: A kért feladvány nem létezik!</h3>';
         }
         elseif(!is_null($jelenszo['sikeres'])) {
+            self::enqueue_assets(true);
             // Ha már lezárult a feladvány, nem lehet újra kitölteni
             echo '<h3>Ezt a feladvány már megoldottad korábban!</h3>';
             $szemelyes = self::get_singleuser_stats();
+            $valaszelszolas = self::get_valaszeloszlas(get_current_user_id());
             include SZOZAT_PLUGIN_DIR . 'views/szemelyes-view.php';
             return null;
         }
+        else {
+            self::enqueue_assets();
+        }
 
-        //TODO Itt lehetne átadni a korábban beírt szavak JSON-jét array-be,
-        //TODO hogy folytatható legyen a korábban megkezdett játék
+        if(isset($jelenszo['valaszok'])) {
+            $kitoltesfolytat = self::folytat_kitoltes($jelenszo['feladvany_szoveg'], $jelenszo['valaszok']);
+            wp_localize_script('szozat-frontend', 'MentettKitoltes', $kitoltesfolytat);
+        }
+
         $betuszam = mb_strlen($jelenszo['feladvany_szoveg']);
         ob_start();
 
@@ -266,7 +286,6 @@ Class Szozat
     }
 
 //? Widget metódusok
-    //TODO Ezek egyike sem csinál semmit, csak placeholderként szolgálnak egyelőre
     public static function register_widgets() {
         register_widget('Szozat_Widget');
     }
@@ -314,9 +333,8 @@ Class Szozat
         }
 
         // A játék megoldásának feldolgozása
-        $ret = array();
-        $megtalalt = $inputszo = "";
-        $index = $betuszam = $valaszertek = $kiserletszam = $sikeres = 0;
+        $inputszo = "";
+        $betuszam = $kiserletszam = $sikeres = 0;
 
         // Bemenet string-gé alakítása
         foreach($_POST['jatekmezoinput'] as $value)
@@ -370,56 +388,21 @@ Class Szozat
                     $kiserletszam,
                     $kitoltesid
                 );
-
                 $wpdb->query($sql);
 
-                // Első pass, helyes betű a helyes helyen
-                foreach($_POST['jatekmezoinput'] as $value)
-                {
-                    $value = mb_strtoupper($value);
-                    $karakter = mb_substr($jelenszo, $index, 1, 'UTF-8');
+                // A játék megoldásának kiértékelése
+                $return = self::eredmeny_kiertekel($jelenszo, $_POST['jatekmezoinput']);
 
-                    if($karakter == $value)
-                    {
-                        $ret[$index] = 2;
-                        $megtalalt .= $value;
-                        $valaszertek += 2;
-                    }
-                    $index++;
-                }
-                $index = 0;
-
-                // Második pass, helyes betű a helytelen helyen
-                foreach($_POST['jatekmezoinput'] as $value)
-                {
-                    $value = mb_strtoupper($value);
-                    $karakter = mb_substr($jelenszo, $index, 1, 'UTF-8');
-                    if($value != $karakter)
-                    {
-                        if(str_contains($jelenszo, $value)
-                            && substr_count($jelenszo, $value) != substr_count($megtalalt, $value))
-                        {
-                            $ret[$index] = 1;
-                            $megtalalt .= $value;
-                        }
-                        else
-                        {
-                            $ret[$index] = 0;
-                        }
-                    }
-                    $index++;
-                }
-
-                if($valaszertek == $betuszam * 2)
+                if($return['valaszertek'] == $betuszam * 2)
                     $sikeres = 1;
                 
                 if($sikeres == 1 || $kiserletszam == 8)
                 {
                     $sql = $wpdb->prepare(
                         "UPDATE {$wpdb->prefix}szozat_kitoltesek
-                        SET sikeres = %d, kiserletszam = %d
+                        SET sikeres = %d
                         WHERE kitoltes_id = %d",
-                        $sikeres, $kiserletszam,
+                        $sikeres,
                         $kitoltesid
                     );
                     $wpdb->query($sql);
@@ -434,42 +417,13 @@ Class Szozat
                 }
                 else
                     $retcode = 200;
-                // Kulcs szerint rendezés, mert a JSON nem garantálja a kulcsok sorrendjét
-                ksort($ret);
             }
-        }
-
-        switch($retcode)
-        {
-            case 200:
-                $uzenet = "Sikeres beküldés!";
-                break;
-            case 202:
-                $uzenet = "Gratulálok, megoldottad a feladványt!";
-                break;
-            case 204:
-                $uzenet = "A feladvány megoldása sikertelen!";
-                break;
-            case 403:
-                $uzenet = "Nincs jogosultságod ehhez az oldalhoz!";
-                break;
-            case 404:
-                $uzenet = "A kért feladvány nem létezik!";
-                break;
-            case 406:
-                $uzenet = "Kérlek létező magyar szót adj meg!";
-                break;
-            case 423:
-                $uzenet = "A feladványt nem lehet újra kitölteni!";
-                break;
-            default:
-                http_response_code(500);
         }
 
         wp_send_json_success([
             'retcode' => $retcode,
-            'uzenet' => $uzenet,
-            'eredmeny' => $ret
+            'uzenet' => self::$uzenet[$retcode],
+            'eredmeny' => $return['eredmeny']
         ]);
     }
 
@@ -699,5 +653,89 @@ Class Szozat
             LIMIT $limit OFFSET $offset;";
 
         return $wpdb->get_results($sql, ARRAY_A);
+    }
+
+    public static function get_valaszeloszlas($felhasznalo = null, $feladvany = null) {
+        global $wpdb;
+        $where = null;
+
+        // Alapértelmezetten nincs WHERE feltétel, és csak egy feltétellel lehet szűrni,
+        // mert nincs értelme mind a két feltételt egyszerre használni
+        if($felhasznalo)
+            $where = $wpdb->prepare('WHERE felhasznalo_id = %d', $felhasznalo);
+        elseif($feladvany)
+            $where = $wpdb->prepare('WHERE feladvany_id = %d', $feladvany);
+
+        $sql = "SELECT kiserletszam, count(*) AS darab
+            FROM wp_szozat_kitoltesek
+            $where
+            GROUP BY kiserletszam
+            ORDER BY kiserletszam ASC;";
+        return $wpdb->get_results($sql, ARRAY_A);
+    }
+
+    public static function eredmeny_kiertekel($feladvany, $betuarray) {
+        $index = $valaszertek = 0;
+        $megtalalt = "";
+        $return = array();
+        // Első pass, helyes betű a helyes helyen
+        foreach($betuarray as $value)
+        {
+            $value = mb_strtoupper($value);
+            $karakter = mb_substr($feladvany, $index, 1, 'UTF-8');
+
+            if($karakter == $value)
+            {
+                $return[$index] = 2;
+                $megtalalt .= $value;
+                $valaszertek += 2;
+            }
+            $index++;
+        }
+        $index = 0;
+
+        // Második pass, helyes betű a helytelen helyen
+        foreach($betuarray as $value)
+        {
+            $value = mb_strtoupper($value);
+            $karakter = mb_substr($feladvany, $index, 1, 'UTF-8');
+            if($value != $karakter)
+            {
+                if(str_contains($feladvany, $value)
+                    && substr_count($feladvany, $value) != substr_count($megtalalt, $value))
+                {
+                    $return[$index] = 1;
+                    $megtalalt .= $value;
+                }
+                else
+                {
+                    $return[$index] = 0;
+                }
+            }
+            $index++;
+        }
+
+        // Visszaadás előtt rendezni kell, hogy a kulcsok sorrendje ne legyen véletlenszerű
+        ksort($return);
+
+        return array(
+            'valaszertek' => $valaszertek,
+            'eredmeny' => $return
+        );
+    }
+
+    private static function folytat_kitoltes($feladvany, $korabbivalaszok) {
+        $return = array();
+        $valaszok = json_decode($korabbivalaszok, true);
+        foreach($valaszok as $valasz)
+        {
+            $eredmeny = self::eredmeny_kiertekel($feladvany, $valasz)['eredmeny'];
+            $return[] = array(
+                'valasz' => $valasz,
+                'eredmeny' => $eredmeny
+            );
+        }
+
+        return $return;
     }
 }

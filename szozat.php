@@ -32,5 +32,5 @@ add_action('admin_menu', ['Szozat', 'admin_menu']);
 add_action('admin_notices', ['Szozat', 'admin_notices']);
 
 // Frontend felület
+add_action('wp_enqueue_scripts', ['Szozat', 'register_assets']);
 add_filter('query_vars', ['Szozat', 'register_query_var']);
-add_action('wp_footer', ['Szozat', 'enqueue_assets']);
