@@ -263,8 +263,9 @@ Class Szozat
             // Ha már lezárult a feladvány, nem lehet újra kitölteni
             echo '<h3>Ezt a feladvány már megoldottad korábban!</h3>';
             $szemelyes = self::get_singleuser_stats();
-            $valaszelszolas = self::get_valaszeloszlas(get_current_user_id());
+            $valaszeloszlas = self::get_valaszeloszlas(get_current_user_id());
             include SZOZAT_PLUGIN_DIR . 'views/szemelyes-view.php';
+            include SZOZAT_PLUGIN_DIR . 'views/eloszlas-view.php';
             return null;
         }
         else {
@@ -658,6 +659,7 @@ Class Szozat
     public static function get_valaszeloszlas($felhasznalo = null, $feladvany = null) {
         global $wpdb;
         $where = null;
+        $sikertelen = "WHERE ";
 
         // Alapértelmezetten nincs WHERE feltétel, és csak egy feltétellel lehet szűrni,
         // mert nincs értelme mind a két feltételt egyszerre használni
@@ -666,12 +668,19 @@ Class Szozat
         elseif($feladvany)
             $where = $wpdb->prepare('WHERE feladvany_id = %d', $feladvany);
 
+        if($where)
+            $sikertelen = "AND ";
+
         $sql = "SELECT kiserletszam, count(*) AS darab
             FROM wp_szozat_kitoltesek
-            $where
+            $where $sikertelen sikeres != 0
             GROUP BY kiserletszam
-            ORDER BY kiserletszam ASC;";
-        return $wpdb->get_results($sql, ARRAY_A);
+        UNION
+            SELECT 9 AS kiserletszam, count(*) AS darab
+            FROM wp_szozat_kitoltesek
+            $where $sikertelen sikeres = 0;";
+
+        return array_column($wpdb->get_results($sql, ARRAY_N), 1, 0);
     }
 
     public static function eredmeny_kiertekel($feladvany, $betuarray) {

@@ -9,8 +9,13 @@
     --talalat: #018216;
     --hianyzik: #990000;
     --rosszhely: #e1bc00;
+    --barcolor: #4CAF50;
 }
 /* ------------------------------- Alap stílusok ------------------------------- */
+
+h3 {
+    margin: 1em 0 0.5em 0;
+}
 .jatek {
     position: sticky;
     top: 0;
@@ -83,6 +88,24 @@
 #jatektabla input:focus {
     border: var(--inpborder) solid 2px;
     outline: 1px solid var(--inpborder);
+}
+
+.bar-container {
+    width: 100%;
+    background-color: var(--tsoro);
+    margin: 0.4em 0;
+    border-radius: 0.4em;
+    overflow: hidden;
+}
+
+.bar {
+    height: 1.5em;
+    text-align: right;
+    padding-right: 0.6em;
+    line-height: 1.5em;
+    color: var(--contentbg);
+    background-color: var(--barcolor);
+    border-radius: 0.4em;
 }
 
 /* ------------------------------- Billentyűzet ------------------------------- */

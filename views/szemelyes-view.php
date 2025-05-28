@@ -1,3 +1,4 @@
+<h3>Eddigi statiszikáid</h3>
 <div id="jatekinfo">
     <div id="jatekinfo_1">Játékos: <span id="jatekosnev"><?=$szemelyes['display_name']?></span></div>
     <div id="jatekinfo_2">Megoldott feladványok száma: <span id="szoveg"><?=$szemelyes['megoldott']?></span></div>
