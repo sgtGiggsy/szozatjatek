@@ -10,7 +10,7 @@ Class Szozat
         'feladvanyok'       => 'st.feladvanyok',
         'sikerrata'         => 'st.sikerrata',
         'sorozathossz'      => 'ms.max_sorozat_hossz',
-        'sikeresorozat'     => 'ms.max_sikeres_sorozat'
+        'sikersorozat'      => 'ms.max_sikeres_sorozat'
     );
 
 //? Plugin betöltése
@@ -26,7 +26,6 @@ Class Szozat
     }
     
 //? Install, deaktivációs és eltávolítási hookok
-    //! NEM TESZTELT EGYIK SEM
     public static function plugin_activation() {
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         require_once SZOZAT_PLUGIN_DIR . 'includes/db-schema.php';
@@ -273,27 +272,30 @@ Class Szozat
     }
 
     public static function render_widget_stats() {
-        global $wpdb;
+        $cache_key = 'szozat_stats_widget';
+        $cached_output = get_transient($cache_key);
+
+        if ($cached_output !== false) {
+            return $cached_output;
+        }
 
         // Példa lekérdezés — természetesen használd a saját statisztikádat
-        $results = $wpdb->get_results("
-            SELECT user_login, COUNT(*) AS darab
-            FROM wp_users u
-            JOIN wp_szozat_kitoltesek k ON k.felhasznalo_id = u.ID
-            GROUP BY u.ID
-            ORDER BY darab DESC
-            LIMIT 5
-        ");
+        $results = self::get_statistics();
 
         if (!$results) return '<p>Nincs statisztikai adat.</p>';
 
-        $html = '<ul>';
-        foreach ($results as $row) {
-            $html .= '<li>' . esc_html($row->user_login) . ' – ' . intval($row->darab) . ' kitöltés</li>';
-        }
-        $html .= '</ul>';
+        ob_start();
+        include SZOZAT_PLUGIN_DIR . 'views/widget-view.php';
+        $output = ob_get_clean();
 
-        return $html;
+        // Cache-eld az eredményt 10 percre (vagy amennyire kell)
+        set_transient($cache_key, $output, 60 * MINUTE_IN_SECONDS);
+
+        return $output;
+    }
+
+    static function invalidate_stats_widget_cache() {
+        delete_transient('szozat_stats_widget');
     }
 
 //? AJAX metódusok
@@ -411,7 +413,7 @@ Class Szozat
                 if($valaszertek == $betuszam * 2)
                     $sikeres = 1;
                 
-                if($valaszertek == $betuszam * 2 || $kiserletszam == 8)
+                if($sikeres == 1 || $kiserletszam == 8)
                 {
                     $sql = $wpdb->prepare(
                         "UPDATE {$wpdb->prefix}szozat_kitoltesek
@@ -420,9 +422,10 @@ Class Szozat
                         $sikeres, $kiserletszam,
                         $kitoltesid
                     );
-
                     $wpdb->query($sql);
 
+                    // A widget cache-ét érvénytelenítjük, hogy a statisztika frissüljön
+                    self::invalidate_stats_widget_cache();
 
                     if($sikeres)
                         $retcode = 202;
@@ -551,6 +554,20 @@ Class Szozat
     }
 
     public static function get_statistics($rendez = 'sikerrata', $irany = 'DESC', $limit = 10, $offset = 0, $felhasznalo_id = null) {
+        /*
+        Visszaadott változók:
+            - felhasznalo_id: A felhasználó azonosítója
+            - display_name: A felhasználó megjelenített neve
+            - bekuldottszo: Beküldött szavak száma
+            - megoldott: Megoldott feladványok száma
+            - feladvanyok: Összes feladványok száma
+            - atlag_kiserlet: Átlagos kísérletek száma
+            - sikerrata: Sikerességi arány (százalékban)
+            - leghosszabb_sorozat: Leghosszabb sorozat hossza
+            - sikeresorozat: Leghosszabb sikeres sorozat hossza
+            - aktualis_sorozat: Az aktuális sorozat kezdete és vége
+            - aktualis_sikersorozat: Az aktuális sikeres sorozat kezdete és vége
+        */
         global $wpdb;
         $felhszur = '';
         if($felhasznalo_id)
@@ -669,18 +686,14 @@ Class Szozat
                 ROUND(st.sikerrata, 2) AS sikerrata,
                 COALESCE(ms.max_sorozat_hossz, 0) AS leghosszabb_sorozat,
                 COALESCE(mss.max_sikeres_sorozat, 0) AS leghosszabb_sikersorozat,
-                aa.sorozat_eleje AS aktualis_sorozat_kezdete,
-                aa.sorozat_vege AS aktualis_sorozat_vege,
-                aa.hossz AS aktualis_sorozat_hossza,
-                sa.sorozat_eleje AS aktualis_sikeres_sorozat_kezdete,
-                sa.sorozat_vege AS aktualis_sikeres_sorozat_vege,
-                sa.hossz AS aktualis_sikeres_sorozat_hossza
+                aa.hossz AS aktualis_sorozat,
+                sa.hossz AS aktualis_sikersorozat
             FROM wp_users u
-            LEFT JOIN stat st ON u.ID = st.felhasznalo_id
-            LEFT JOIN max_sorozatok ms ON u.ID = ms.felhasznalo_id
-            LEFT JOIN max_sikeres_sorozatok mss ON u.ID = mss.felhasznalo_id
-            LEFT JOIN aktualis_sorozat aa ON u.ID = aa.felhasznalo_id
-            LEFT JOIN aktualis_sikeres_sorozat sa ON u.ID = sa.felhasznalo_id
+                LEFT JOIN stat st ON u.ID = st.felhasznalo_id
+                LEFT JOIN max_sorozatok ms ON u.ID = ms.felhasznalo_id
+                LEFT JOIN max_sikeres_sorozatok mss ON u.ID = mss.felhasznalo_id
+                LEFT JOIN aktualis_sorozat aa ON u.ID = aa.felhasznalo_id
+                LEFT JOIN aktualis_sikeres_sorozat sa ON u.ID = sa.felhasznalo_id
             $felhszur
             ORDER BY " . self::$orderby[$rendez] . " $irany
             LIMIT $limit OFFSET $offset;";

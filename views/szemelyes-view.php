@@ -6,4 +6,6 @@
     <div id="jatekinfo_5">Sikeres játékok aránya: <span id="jatekallapot"><?=$szemelyes['sikerrata']?></span></div>
     <div id="jatekinfo_6">Leghosszabb sorozat: <span id="jatektartam"><?=$szemelyes['leghosszabb_sorozat']?></span></div>
     <div id="jatekinfo_7">Leghosszabb sikeres sorozat: <span id="jatektartam"><?=$szemelyes['leghosszabb_sikersorozat']?></span></div>
+    <div id="jatekinfo_6">Jelenlegi sorozat: <span id="jatektartam"><?=$szemelyes['aktualis_sorozat']?></span></div>
+    <div id="jatekinfo_7">Jelenlegi sikeres sorozat: <span id="jatektartam"><?=$szemelyes['aktualis_sikersorozat']?></span></div>
 </div>
