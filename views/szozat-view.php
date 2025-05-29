@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
             ?></tr><?php
         }
     ?></table>
-    <button id="beKuld" onclick="sendMegoldas()" disabled><?=__('Beküld', 'szozat') . ":"?></button>
+    <button id="beKuld" onclick="sendMegoldas()" disabled><?=__('Beküld', 'szozat') ?></button>
 
     <div class="keyboard">
         <!-- Számok -->

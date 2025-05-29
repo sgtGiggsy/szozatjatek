@@ -90,6 +90,18 @@ h3 {
     outline: 1px solid var(--inpborder);
 }
 
+.bar-row {
+    display: flex;
+    flex-direction: row;
+    text-wrap: nowrap;
+    gap: 0.7em;
+}
+
+.bar-row span {
+    margin: 0.4em 0;
+    width: 15ch;
+}
+
 .bar-container {
     width: 100%;
     background-color: var(--tsoro);

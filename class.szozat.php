@@ -15,15 +15,11 @@ Class Szozat
 
     private static $uzenet = [];
 
-    public static function init_uzenetek() {
-        self::$uzenet = array(
-            200 => __('Sikeres beküldés!', 'szozat'),
-            202 => __('Gratulálok, megoldottad a feladványt!', 'szozat'),
-            204 => __('A feladvány megoldása sikertelen!', 'szozat'),
-            403 => __('Nincs jogosultságod ehhez az oldalhoz!', 'szozat'),
-            404 => __('A kért feladvány nem létezik!', 'szozat'),
-            406 => __('Kérlek létező magyar szót adj meg!', 'szozat'),
-            423 => __('A feladványt nem lehet újra kitölteni!', 'szozat'),
+    public static function load_textdomain() {
+        load_plugin_textdomain(
+            'szozat',
+            false,
+            dirname(plugin_basename(__FILE__)) . '/languages'
         );
     }
 
@@ -36,7 +32,21 @@ Class Szozat
         add_action('init', [self::class, 'register_shortcodes']);
         add_action('init', [self::class, 'register_ajax_hooks']);
         add_action('init', [self::class, 'add_rewrite_rule']);
+        add_action('init', [self::class, 'load_textdomain']);
         add_action('widgets_init', [self::class, 'register_widgets']);
+        add_action('init', [self::class, 'init_uzenetek']);
+    }
+
+    public static function init_uzenetek() {
+        self::$uzenet = array(
+            200 => __('Sikeres beküldés!', 'szozat'),
+            202 => __('Gratulálok, megoldottad a feladványt!', 'szozat'),
+            204 => __('A feladvány megoldása sikertelen!', 'szozat'),
+            403 => __('Nincs jogosultságod ehhez az oldalhoz!', 'szozat'),
+            404 => __('A kért feladvány nem létezik!', 'szozat'),
+            406 => __('Kérlek létező magyar szót adj meg!', 'szozat'),
+            423 => __('A feladványt nem lehet újra kitölteni!', 'szozat'),
+        );
     }
     
 //? Install, deaktivációs és eltávolítási hookok
@@ -346,7 +356,8 @@ Class Szozat
 //? AJAX metódusok
     public static function register_ajax_hooks() {
         add_action('wp_ajax_szozat_megoldas', [__CLASS__, 'handle_megoldas']);
-        add_action('wp_ajax_nopriv_szozat_megoldas', [__CLASS__, 'handle_megoldas']);
+        //add_action('wp_ajax_nopriv_szozat_megoldas', [__CLASS__, 'handle_megoldas']);
+        add_action('wp_ajax_szozat_get_stats', [__CLASS__, 'get_endgame_stats']);
     }
 
     public static function handle_megoldas() {
@@ -374,6 +385,7 @@ Class Szozat
         if((int) $wpdb->get_var($sql) == 0)
         {
             $retcode = 406;
+            $return['eredmeny'] = array();
         }
         else
         {
@@ -451,6 +463,10 @@ Class Szozat
             'uzenet' => self::$uzenet[$retcode],
             'eredmeny' => $return['eredmeny']
         ]);
+    }
+
+    public static function get_endgame_stats() {
+
     }
 
 //? Segéd metódusok

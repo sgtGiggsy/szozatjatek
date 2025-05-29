@@ -199,11 +199,15 @@ function eredmenyKiErtekel(rawjson) {
         if(json.retcode == 423)
             disableAllFields();
 
-        Swal.fire({
-            title: "HIBA!",
-            text: json.uzenet,
-            icon: "error",
-        });
+        // A késleltetés nélkül nem kerül focus-ba az OK gomb a felugrón
+        setTimeout(() => {
+            Swal.fire({
+                title: "HIBA!",
+                text: json.uzenet,
+                icon: "error",
+            });
+        }, 0);
+
         if(json.retcode == 406)
             setRow();
     }
