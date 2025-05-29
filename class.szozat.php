@@ -1,8 +1,7 @@
 <?php
 Class Szozat
 {
-//? Változók
-    public static $should_enqueue_assets = false;
+//? Konstansok
     public static $orderby = array(
         'felhasznalo_id'    => 'u.id',
         'felhasznalonev'    => 'u.user_login',
@@ -14,15 +13,19 @@ Class Szozat
         'sikersorozat'      => 'ms.max_sikeres_sorozat'
     );
 
-    public static $uzenet = array(
-        200 => "Sikeres beküldés!",
-        202 => "Gratulálok, megoldottad a feladványt!",
-        204 => "A feladvány megoldása sikertelen!",
-        403 => "Nincs jogosultságod ehhez az oldalhoz!",
-        404 => "A kért feladvány nem létezik!",
-        406 => "Kérlek létező magyar szót adj meg!",
-        423 => "A feladványt nem lehet újra kitölteni!"
-    );
+    private static $uzenet = [];
+
+    public static function init_uzenetek() {
+        self::$uzenet = array(
+            200 => __('Sikeres beküldés!', 'szozat'),
+            202 => __('Gratulálok, megoldottad a feladványt!', 'szozat'),
+            204 => __('A feladvány megoldása sikertelen!', 'szozat'),
+            403 => __('Nincs jogosultságod ehhez az oldalhoz!', 'szozat'),
+            404 => __('A kért feladvány nem létezik!', 'szozat'),
+            406 => __('Kérlek létező magyar szót adj meg!', 'szozat'),
+            423 => __('A feladványt nem lehet újra kitölteni!', 'szozat'),
+        );
+    }
 
 //? Plugin betöltése
     public static function init() {
@@ -103,13 +106,13 @@ Class Szozat
 //? Admin felület metódusai
     public static function admin_menu() {
         add_menu_page(
-            'Szózat beállítások',       // Oldal címe (title)
-            'Szózatjáték',              // Menü szöveg
-            'manage_options',           // Jogosultság
-            'szozat_settings',          // Slug (URL-ben)
-            ['Szozat', 'admin_page'],   // Callback (megjelenítő függvény)
-            'dashicons-games',          // Ikon
-            80                          // Pozíció
+            __('Szózat beállítások', 'szozat'),     // Oldal címe
+            __('Szózatjáték', 'szozat'),            // Menü szöveg
+            'manage_options',                       // Jogosultság
+            'szozat_settings',                      // Slug (URL-ben)
+            ['Szozat', 'admin_page'],               // Callback (megjelenítő függvény)
+            'dashicons-games',                      // Ikon
+            80                                      // Pozíció
         );
     }
 
@@ -183,17 +186,38 @@ Class Szozat
             echo '<div class="notice notice-' . $class . ' is-dismissible">';
             if(isset($_GET['error']))
             {
-                switch($_GET['error'])
-                {
-                    case "ismeretlen_szo" : echo "<p><strong>Hiba:</strong> A(z) " . mb_strtoupper($_GET['szo']) . " nem egy felismert magyar szó, ezért nem adható az adatbázishoz!</p>";
+                switch ($_GET['error']) {
+                    case "ismeretlen_szo":
+                        /* translators: %s is a placeholder for the word the admin tried to add as a puzzle, but wasn't found in the db as a known word */
+                        printf(
+                            '<p><strong>%s</strong> %s</p>',
+                            __('Hiba:', 'szozat'),
+                            sprintf(
+                                __('A(z) %s nem egy felismert magyar szó, ezért nem adható az adatbázishoz!', 'szozat'),
+                                mb_strtoupper($_GET['szo'])
+                            )
+                        );
                         break;
-                    case "duplikalt_szo" : echo "<p><strong>Hiba:</strong> A(z) " . mb_strtoupper($_GET['szo']) . " már szerepel a feladványok között!</p>";
+
+                    case "duplikalt_szo":
+                        /* translators: %s is a placeholder for the word the admin tried to add as a puzzle, but it was already among the list of previously added puzzles */
+                        printf(
+                            '<p><strong>%s</strong> %s</p>',
+                            __('Hiba:', 'szozat'),
+                            sprintf(
+                                __('A(z) %s már szerepel a feladványok között!', 'szozat'),
+                                mb_strtoupper($_GET['szo'])
+                            )
+                        );
                         break;
                 }
             }
 
             if (isset($_GET['success'])) {
-                echo '<p>Feladvány sikeresen létrehozva.</p>';
+                printf(
+                    '<p>%s</p>',
+                    __('Feladvány sikeresen létrehozva.', 'szozat'))
+                    ;
             }
             echo '</div>';
         }
@@ -256,12 +280,12 @@ Class Szozat
         // Bekérjük a feladványt
         $jelenszo = self::get_feladvany();
         if($jelenszo['sikeres'] === -1) {
-            return '<h3>Hiba: A kért feladvány nem létezik!</h3>';
+            return '<h3>' . __('Hiba: A kért feladvány nem létezik!', 'szozat') . '</h3>';
         }
         elseif(!is_null($jelenszo['sikeres'])) {
             self::enqueue_assets(true);
             // Ha már lezárult a feladvány, nem lehet újra kitölteni
-            echo '<h3>Ezt a feladvány már megoldottad korábban!</h3>';
+            echo '<h3>' . __('Ezt a feladványt már megoldottad korábban!', 'szozat') . '</h3>';
             $szemelyes = self::get_singleuser_stats();
             $valaszeloszlas = self::get_valaszeloszlas(get_current_user_id());
             include SZOZAT_PLUGIN_DIR . 'views/szemelyes-view.php';
@@ -302,7 +326,8 @@ Class Szozat
         // Példa lekérdezés — természetesen használd a saját statisztikádat
         $results = self::get_statistics();
 
-        if (!$results) return '<p>Nincs statisztikai adat.</p>';
+        if (!$results) return '<p>' . __('Nincs statisztikai adat.', 'szozat') . '</p>';
+
 
         ob_start();
         include SZOZAT_PLUGIN_DIR . 'views/widget-view.php';

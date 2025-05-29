@@ -2,12 +2,12 @@
     <table>
         <thead>
             <tr>
-                <th>Felhasználó</th>
-                <th>Összes</th>
-                <th>Sikeres</th>
-                <th>Átlag</th>
-                <th>Széria</th>
-                <th>Sikerszéria</th>
+                <th><?=__('Felhasználó', 'szozat')?></th>
+                <th><?=__('Összes', 'szozat')?></th>
+                <th><?=__('Sikeres', 'szozat')?></th>
+                <th><?=__('Átlag', 'szozat')?></th>
+                <th><?=__('Széria', 'szozat')?></th>
+                <th><?=__('Sikerszéria', 'szozat')?></th>
             </tr>
         </thead>
         <tbody>

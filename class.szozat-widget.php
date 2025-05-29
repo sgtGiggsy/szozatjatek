@@ -3,7 +3,7 @@ class Szozat_Widget extends WP_Widget {
     public function __construct() {
         parent::__construct(
             'szozat_stat_widget',
-            __('Szozat statisztika', 'szozat'),
+            __('Szózat statisztika', 'szozat'),
             ['description' => __('Felhasználói statisztikák megjelenítése.', 'szozat')]
         );
     }
@@ -20,7 +20,7 @@ class Szozat_Widget extends WP_Widget {
         if (class_exists('Szozat') && method_exists('Szozat', 'render_widget_stats')) {
             echo Szozat::render_widget_stats();
         } else {
-            echo '<p>Nem érhető el statisztika.</p>';
+            _e('Nem érhető el statisztika.', 'szozat');
         }
 
         echo $args['after_widget'];

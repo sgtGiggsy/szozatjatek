@@ -10,6 +10,8 @@ Description: WordPress Szózat játék plugin statisztikákkal
 Author: Király Béla
 Version: 1.0.0
 Author URI: https://github.com/sgtGiggsy
+Text Domain: szozat
+Domain Path: /languages
 */
 
 // Do not load directly.
@@ -34,3 +36,4 @@ add_action('admin_notices', ['Szozat', 'admin_notices']);
 // Frontend felület
 add_action('wp_enqueue_scripts', ['Szozat', 'register_assets']);
 add_filter('query_vars', ['Szozat', 'register_query_var']);
+//add_action('plugins_loaded', ['Szozat', 'init_uzenetek']);

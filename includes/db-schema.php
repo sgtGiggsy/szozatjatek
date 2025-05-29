@@ -1,5 +1,16 @@
 <?php
-// Visszaadja az összes tábla létrehozó SQL utasítást dbDelta számára
+/**
+ * @package Szozat
+ */
+
+/**
+ * Visszaadja a táblák létrehozásához szükséges SQL sémákat.
+ *
+ * @param string $prefix
+ * @param string $charset_collate
+ * @return array
+ */
+
 function szozat_get_table_schemas($prefix, $charset_collate) {
     return [
         // szozat_feladvanyok

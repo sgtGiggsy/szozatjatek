@@ -10,7 +10,7 @@ for($i = 1; $i < 10; $i++)
 
     ?><div class="bar-container">
         <div class="bar" style="width: <?=$szazalek?>;<?=($i == 9) ? ' background-color: var(--hianyzik)' : '' ?>">
-            <?=($szam && $i < 9) ? $i . " próbálkozás" : (($i == 9) ? 'Megfejtés nem sikerült' : '') ?>
+            <?=($szam && $i < 9) ? $i . " " . __('próbálkozás', 'szozat') : (($i == 9) ? __('Megfejtés nem sikerült', 'szozat') : '') ?>
         </div>
     </div><?php
 }
