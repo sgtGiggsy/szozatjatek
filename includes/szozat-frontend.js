@@ -1,4 +1,5 @@
 var currentid = cursor = 0;
+var json;
 var lastkey = null;
 var jatekaktiv = true;
 const betuszam = document.getElementById('jatektabla').getAttribute('data-betuszam');
@@ -193,7 +194,7 @@ function sorSzinez(eredmeny) {
 }
 
 function eredmenyKiErtekel(rawjson) {
-    let json = rawjson.data;
+    json = rawjson.data;
     if(json.retcode < 200 || json.retcode > 204)
     {
         if(json.retcode == 423)
@@ -218,24 +219,9 @@ function eredmenyKiErtekel(rawjson) {
 
         if(json.retcode == 202 || json.retcode == 204)
         {
-            let title, icon;
-            if(json.retcode == 202) {
-                title = "Gratulálunk!";
-                icon = "success";
-            }
-            else {
-                title = "Sajnáljuk!";
-                icon = "error";
-            }
-            // A késleltetés nélkül korábban jelenik meg az üzenet, mint ahogy a háttérben a script befejeződik
-            setTimeout(() => {
-                Swal.fire({
-                    title: title,
-                    text: json.uzenet,
-                    icon: icon
-                });
-                disableAllFields();
-            }, 0);
+            disableAllFields();
+            endgameSplash();
+            setButton();
             jatekaktiv = false;
         }
         else
@@ -247,6 +233,62 @@ function eredmenyKiErtekel(rawjson) {
         }
         document.getElementById("beKuld").disabled = true;
     }
+}
+
+function copyGameTable() {
+    const eredetiTabla = document.querySelector('table'); // vagy valamilyen ID: #myTable
+    let masolat = eredetiTabla.cloneNode(true); // true = mély másolat (gyerekeivel együtt)
+    masolat.id = 'masolat';
+    masolat.querySelectorAll('td').forEach(cell => {
+        cell.innerHTML = '&nbsp;';
+    });
+    let finalTable = "<div class='masolatwrap'>" + masolat.outerHTML + "</div>";
+    document.getElementById('teszt').innerHTML = finalTable;
+    masolat = document.getElementById('masolat');
+    
+    html2canvas(masolat).then(canvas => {
+        // Kép megjelenítése az oldalon
+        document.body.appendChild(canvas);
+
+        // Kép letöltése PNG formátumban
+        const link = document.createElement('a');
+        link.download = 'tabla.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+
+    return finalTable;
+    //document.body.appendChild(masolat); // vagy ahova akarod
+}
+
+function setButton() {
+    document.getElementById('beKuld').style.display = 'none';
+    document.getElementById('endgameSplash').style.display = '';
+}
+
+async function endgameSplash() {
+    let title, icon, messagebody;
+    if(json.retcode == 202) {
+        title = "Gratulálunk!";
+        icon = "success";
+    }
+    else {
+        title = "Sajnáljuk!";
+        icon = "error";
+    }
+
+    messagebody = copyGameTable();
+
+    getEndGameStats().then(response => {
+        messagebody += response;
+        Swal.fire({
+            title:  title,
+            text:   json.uzenet,
+            html:   messagebody,
+            icon:   icon
+        });
+        //console.log(messagebody);
+    });
 }
 
 async function sendMegoldas() {
@@ -272,5 +314,25 @@ async function sendMegoldas() {
         //console.log(await response.json());
     } catch (e) {
         console.error(e);
+    }
+}
+
+async function getEndGameStats() {
+    const formData = new FormData();
+    // Az action mező hozzáadása, hogy a WP tudja, melyik AJAX hívást kell kezelnie
+    formData.append('action', 'szozat_get_stats');
+    formData.append('security', SzozatAjax.nonce);
+
+    try {
+        const response = await fetch(SzozatAjax.ajax_url, {
+            method: "POST",
+            body: formData
+        });
+        
+        const html = await response.text();
+        return html;
+        //console.log(await response.json());
+    } catch (e) {
+        return e;
     }
 }

@@ -19,6 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         }
     ?></table>
     <button id="beKuld" onclick="sendMegoldas()" disabled><?=__('Beküld', 'szozat') ?></button>
+    <button id="endgameSplash" onclick="endgameSplash()" style="display:none"><?=__('Eredmények újbóli megjelenítése', 'szozat') ?></button>
 
     <div class="keyboard">
         <!-- Számok -->

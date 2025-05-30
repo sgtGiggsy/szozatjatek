@@ -243,6 +243,7 @@ Class Szozat
     public static function enqueue_assets($cssonly = false) {
         wp_enqueue_style('szozat-style');
         if(!$cssonly) {
+            wp_enqueue_script('html2canvas');
             wp_enqueue_script('sweetalert2-js');
             wp_enqueue_style('sweetalert2-css');
             wp_enqueue_script('szozat-frontend');
@@ -255,6 +256,14 @@ Class Szozat
     }
 
     public static function register_assets() {
+        wp_register_script(
+            'html2canvas',
+            plugin_dir_url(__FILE__) . 'includes/external/html2canvas.min.js',
+            [],
+            '11.22.0',
+            true
+        );
+
         wp_register_script(
             'sweetalert2-js',
             plugin_dir_url(__FILE__) . 'includes/external/sweetalert2.all.min.js',
@@ -466,7 +475,11 @@ Class Szozat
     }
 
     public static function get_endgame_stats() {
-
+        $szemelyes = self::get_singleuser_stats();
+        $valaszeloszlas = self::get_valaszeloszlas(get_current_user_id());
+        include SZOZAT_PLUGIN_DIR . 'views/szemelyes-view.php';
+        include SZOZAT_PLUGIN_DIR . 'views/eloszlas-view.php';
+        wp_die();
     }
 
 //? Segéd metódusok

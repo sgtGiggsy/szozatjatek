@@ -51,7 +51,13 @@ h3 {
     border: none;
 }
 
-#jatektabla {
+.masolatwrap {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+}
+
+#jatektabla, #masolat {
     width: unset;
     border-spacing: 0.3em;
     display: table;
@@ -59,17 +65,26 @@ h3 {
 }
 
 #jatektabla tr:nth-child(even) {
-    background-color: var(--tsore)
+    background-color: var(--tsore);
 }
 
 #jatektabla tr:nth-child(odd) {
-    background-color: var(--tsoro)
+    background-color: var(--tsoro);
 }
 
-#jatektabla td {
+#jatektabla td, #masolat td {
     border-radius: 0.2em;
     padding: 0;
     text-align: center;
+}
+
+#masolat td {
+    content: "";
+    width: 2em;
+    height: 2em;
+    border: var(--shadow) solid 2px;
+    border-radius: 25%;
+    background-color: var(--tsoro);
 }
 
 #jatektabla input {
