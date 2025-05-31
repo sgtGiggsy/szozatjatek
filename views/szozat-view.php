@@ -88,4 +88,5 @@ if ( ! defined( 'ABSPATH' ) ) {
             <div class="key wide" id="bill-<" onclick="billentyuLeut('Backspace')">←</div>
         </div>
     </div>
+    <div id="tmp_div"></div>
 </div>

@@ -51,7 +51,7 @@ h3 {
     border: none;
 }
 
-.masolatwrap {
+#eredmeny {
     display: flex;
     width: 100%;
     justify-content: center;

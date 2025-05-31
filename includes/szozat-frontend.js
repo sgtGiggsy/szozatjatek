@@ -235,39 +235,40 @@ function eredmenyKiErtekel(rawjson) {
     }
 }
 
-function copyGameTable() {
-    const eredetiTabla = document.querySelector('table'); // vagy valamilyen ID: #myTable
-    let masolat = eredetiTabla.cloneNode(true); // true = mély másolat (gyerekeivel együtt)
-    masolat.id = 'masolat';
-    masolat.querySelectorAll('td').forEach(cell => {
-        cell.innerHTML = '&nbsp;';
-    });
-    let finalTable = "<div class='masolatwrap'>" + masolat.outerHTML + "</div>";
-    document.getElementById('teszt').innerHTML = finalTable;
-    masolat = document.getElementById('masolat');
-    
-    html2canvas(masolat).then(canvas => {
-        // Kép megjelenítése az oldalon
-        document.body.appendChild(canvas);
-
-        // Kép letöltése PNG formátumban
-        const link = document.createElement('a');
-        link.download = 'tabla.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-    });
-
-    return finalTable;
-    //document.body.appendChild(masolat); // vagy ahova akarod
-}
-
 function setButton() {
     document.getElementById('beKuld').style.display = 'none';
     document.getElementById('endgameSplash').style.display = '';
 }
 
+async function copyGameTable() {
+    const eredetiTabla = document.querySelector('table');
+    let masolat = eredetiTabla.cloneNode(true);
+    masolat.id = 'masolat';
+    masolat.querySelectorAll('td').forEach(cell => {
+        cell.innerHTML = '&nbsp;';
+    });
+    let finalTable = masolat.outerHTML;
+    let tmp_div = document.getElementById('tmp_div');
+    tmp_div.style.display = '';
+    tmp_div.innerHTML = finalTable;
+
+    // Kép legenerálása
+    const image = await generateImage(document.getElementById('masolat'));
+    tmp_div.innerHTML = "<h3>Játék eredménye</h3><div id='eredmeny'><img src='" + image + "'></div>";
+    tmp_div.style.display = 'none';
+    
+    
+    return tmp_div.innerHTML;
+}
+
+async function generateImage(element) {
+    const canvas = await html2canvas(element);
+    const dataUrl = canvas.toDataURL("image/png");
+    return dataUrl;
+}
+
 async function endgameSplash() {
-    let title, icon, messagebody;
+    let title, icon, messagebody, eredmenybutton, mindbutton;
     if(json.retcode == 202) {
         title = "Gratulálunk!";
         icon = "success";
@@ -277,10 +278,17 @@ async function endgameSplash() {
         icon = "error";
     }
 
-    messagebody = copyGameTable();
+    if(!window.isSecureContext)
+    {
+        eredmenybutton = "<button class='swal2-confirm swal2-styled' onclick='copyElementToClipboard(" + '"eredmeny"' + ")'>Eredmény másolása</button>";
+        mindbutton = "<button class='swal2-confirm swal2-styled' onclick='copyElementToClipboard(" + '"eredmenylista"' + ")'>Teljes statisztika másolása</button>";
+    }
+
+    messagebody = await copyGameTable();
+    messagebody = eredmenybutton + mindbutton + "<div id='eredmenylista'>" + messagebody;
 
     getEndGameStats().then(response => {
-        messagebody += response;
+        messagebody += response + "</div>";
         Swal.fire({
             title:  title,
             text:   json.uzenet,
@@ -288,6 +296,20 @@ async function endgameSplash() {
             icon:   icon
         });
         //console.log(messagebody);
+    });
+}
+
+function copyElementToClipboard(elementid) {
+    let elem = document.getElementById(elementid).outerHTML;
+    //navigator.clipboard.writeText(elem);
+    navigator.clipboard.write([
+      new ClipboardItem({
+        "text/html": new Blob([elem], { type: "text/html" })
+      })
+    ]).then(() => {
+        console.log('Sikeres másolás');
+    }).catch(err => {
+        console.log('Sikertelen másolás: ' + err);
     });
 }
 
